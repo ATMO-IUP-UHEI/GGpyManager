@@ -15,8 +15,9 @@ import numpy as np
 
 from ggpymanager import *
 
+# Uneccessary?
 @pytest.fixture(scope="session")
-def get_data_path(tmp_path_factory):
+def data_path(tmp_path_factory):
     """
     Creates a temporary data directory with pseudo-data for tests.
 
@@ -28,4 +29,5 @@ def get_data_path(tmp_path_factory):
 
     # Configure tmp data path
     data_path = tmp_path_factory.mktemp("data")
+    assert isinstance(data_path, Path)
     return data_path

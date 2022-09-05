@@ -59,7 +59,6 @@ class Simulation:
     Parameters
     ----------
     catalog_path : pathlib Path
-    config_path : pathlib Path
     sim_sub_path : pathlib Path
     link_target_path_list : list of pathlib Path
     link_name_list : list of str
@@ -68,7 +67,6 @@ class Simulation:
     Attributes
     ----------
     catalog_path : pathlib Path
-    config_path : pathlib Path
     sim_sub_path : pathlib Path
     link_target_path_list : list of pathlib Path
     link_name_list : list of str
@@ -92,7 +90,6 @@ class Simulation:
     def __init__(
         self,
         catalog_path,
-        config_path,
         sim_sub_path,
         link_target_path_list,
         link_name_list,
@@ -100,7 +97,6 @@ class Simulation:
     ):
         # Init variables
         self.catalog_path = catalog_path
-        self.config_path = config_path
         self.sim_sub_path = sim_sub_path
 
         self.link_target_path_list = link_target_path_list
@@ -125,10 +121,15 @@ class Simulation:
 
     def test_for_init(self):
         # Check if meteo file is identical
-        with open(self.sim_sub_path / "meteopgt.all", "r") as meteo_f:
-            if meteo_f.read() != self.meteo_text:
-                self.status = State('"meteopgt.all" not identical', -1)
-                return -1
+        meteo_file_path = self.sim_sub_path / "meteopgt.all"
+        if meteo_file_path.exists():
+            with open(meteo_file_path, "r") as meteo_f:
+                if meteo_f.read() != self.meteo_text:
+                    self.status = State('"meteopgt.all" not identical', -1)
+                    return -1
+        else:
+            self.status = State('"meteopgt.all" not in folder', -1)
+            return -1
         # Check if all links and log-files exist
         for p in self.sim_sub_path.iterdir():
             if p.is_symlink():
@@ -182,8 +183,10 @@ class Simulation:
         # Asssume initialized
         self.status = Status.init
         self.test_for_init()
-        self.test_for_running()
-        self.test_for_finished()
+        if not self.status == Status.error:
+            self.test_for_running()
+        if not self.status == Status.error:
+            self.test_for_finished()
 
     def setup_input(self):
         """

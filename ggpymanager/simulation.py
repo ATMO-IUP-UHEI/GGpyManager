@@ -92,6 +92,7 @@ class Simulation:
         link_target_path_list,
         link_name_list,
         meteo_text,
+        read_only=True,
     ):
         # Init variables
         self.catalog_path = catalog_path
@@ -114,7 +115,7 @@ class Simulation:
         # Read or create simulation directory
         if self.sim_sub_path.exists():
             self.read_dir()
-        else:
+        elif not read_only:
             self.setup_input()
 
     def test_for_init(self):

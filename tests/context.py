@@ -15,7 +15,7 @@ import numpy as np
 
 from ggpymanager import *
 
-# Uneccessary?
+
 @pytest.fixture(scope="session")
 def data_path(tmp_path_factory):
     """

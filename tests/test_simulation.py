@@ -1,5 +1,7 @@
+import time
+
 from context import data_path
-from context import Simulation
+from context import Simulation, Status
 
 
 # Minimal working example
@@ -20,7 +22,7 @@ def create_input(data_path):
     catalog_path = data_path / "catalog"
     catalog_path.mkdir()
     sim_sub_path = data_path / "sim"
-    sim_sub_path.mkdir()
+    # sim_sub_path.mkdir()
     config_path = data_path / "config"
     config_path.mkdir()
 
@@ -45,3 +47,7 @@ def create_input(data_path):
 
 def test_simulation(data_path):
     simulation = Simulation(*create_input(data_path))
+    simulation.get_status()
+    simulation.run()
+    time.sleep(1)
+    assert simulation.get_status() == Status.finished

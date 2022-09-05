@@ -76,8 +76,6 @@ class Simulation:
 
     Methods
     -------
-    read_dir()
-    setup_input()
     run()
     get_status()
     clean_simulation_path() -- Not implemented
@@ -247,9 +245,8 @@ class Simulation:
                 # Close logfiles
                 self.logfile.close()
                 self.error_logfile.close()
-                self.test_for_finished()
-    
-        return self.status
+                self.status = Status.finished
+            return self.status
 
     def __repr__(self):
         return "Sim {} status: {}.".format(

@@ -72,12 +72,12 @@ class Catalog:
 
     """
 
-    def __init__(self, catalog_path, sim_path, read_only=True):
+    def __init__(self, catalog_path, config_path, sim_path, read_only=True):
         self.catalog_path = Path(catalog_path)
         self.sim_path = Path(sim_path)
         self.read_only = read_only
 
-        self.config_path = self.catalog_path / "config"
+        self.config_path = config_path
         self.meteopgt = self.get_meteopgt()
 
         self.total_sim = len(self.meteopgt) - N_HEADER

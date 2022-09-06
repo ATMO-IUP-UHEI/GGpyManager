@@ -42,7 +42,7 @@ def create_input(data_path):
     #     target_path.touch()
     #     link_target_path_list.append(target_path)
     # link_name_list = targets
-    return [catalog_path, sim_path]
+    return [catalog_path, sim_path, config_path]
 
 
 def test_catalog(data_path):

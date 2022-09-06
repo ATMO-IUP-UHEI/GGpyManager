@@ -1,12 +1,21 @@
 from setuptools import setup
 
 setup(
-   name='ggpymanager',
-   version='0.1',
-   description='',
-   author='Robert Maiwald',
-   author_email='rmaiwald@iup.uni-heidelberg.de',
-   packages=['ggpymanager'],  #same as name
-   install_requires=["scipy", "numpy"], #external packages as dependencies
-   scripts=[]
+    name="ggpymanager",
+    version="1.0",
+    description="",
+    author="Robert Maiwald",
+    author_email="rmaiwald@iup.uni-heidelberg.de",
+    packages=["ggpymanager"],
+    install_requires=[
+        "scipy",
+        "numpy",
+        "time",
+        "pathlib",
+        "subprocess",
+        "dataclass",
+        "pytest",
+
+    ],  # external packages as dependencies
+    scripts=[],
 )

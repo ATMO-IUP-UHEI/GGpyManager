@@ -10,8 +10,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from pathlib import Path
 import pytest
-import pandas as pd
-import numpy as np
+
 
 from ggpymanager import *
 
@@ -23,7 +22,7 @@ def data_path(tmp_path_factory):
 
     Returns
     -------
-    data_path : pathlib Path    
+    data_path : pathlib Path
         Parent of temporary data directory.
     """
 

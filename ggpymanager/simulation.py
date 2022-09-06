@@ -247,7 +247,7 @@ class Simulation:
                 self.logfile.close()
                 self.error_logfile.close()
                 self.status = Status.finished
-            return self.status
+        return self.status
 
     def __repr__(self):
         return "Sim {} status: {}.".format(

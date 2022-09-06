@@ -96,11 +96,12 @@ class Catalog:
             meteopgt_text = file.read()
         meteopgt = meteopgt_text.split("\n")
         # Drop trailing empty lines
-        for i in range(len(meteopgt)):
+        for i in range(1, len(meteopgt) + 1):
             if meteopgt[-i] == "":
-                meteopgt.pop(-i)
+                limit = -i
             else:
                 break
+        meteopgt = meteopgt[:limit]
         return meteopgt
 
     def get_info(self):
@@ -113,9 +114,9 @@ class Catalog:
             Dictionary with information about the GRAMM and the GRAL simulations.
         """
         info = {
-            "Total wind situations":self.total_sim,
-            "Missing GRAMM simulations":self.get_gramm_missing(),
-            "Missing GRAL simulations":self.get_gral_missing(),
+            "Total wind situations": self.total_sim,
+            "Missing GRAMM simulations": self.get_gramm_missing(),
+            "Missing GRAL simulations": self.get_gral_missing(),
         }
         return info
 
@@ -162,38 +163,69 @@ class Catalog:
         )
         return gral_missing_list
 
-    def add_simulations(self, n_simulations=None):
-        _, _, gral_missing_list = self.read_dir()
-        meteo_list = gral_missing_list
+    def init_simulations(self, n_limit=None):
+        """
+        Initialize the missing GRAL simulations in the simulation directory. The number
+        of new simulations can be limited for performance or testing reasons.
 
-        if n_simulations != None:
-            meteo_list = meteo_list[:n_simulations]
+        Parameters
+        ----------
+        n_limit : in, optional
+            Limit of simulations to initialize, by default None
+        """
+        gral_missing_list = self.get_gral_missing()
 
-        for meteo_number in meteo_list:
+        # Only add a limited amount of simulations
+        if n_limit is not None:
+            gral_missing_list = gral_missing_list[:n_limit]
+
+        for meteo_number in gral_missing_list:
+            # Create a subpath from the `meteo_number`
             sim_sub_path = self.sim_path / "{:05}_sim".format(meteo_number)
             link_target_path_list, link_name_list = self.create_link_list(meteo_number)
-
-            meteo_id = meteo_number - 1
-            n_line = meteo_id + N_HEADER
-            meteo_text = "\n".join(
-                self.meteopgt[:N_HEADER] + self.meteopgt[n_line : n_line + 1]
-            )
+            meteo_text = self.create_meteo_text(meteo_number)
 
             self.simulations.append(
                 Simulation(
                     self.catalog_path,
-                    self.config_path,
                     sim_sub_path,
                     link_target_path_list,
                     link_name_list,
                     meteo_text,
+                    self.read_only,
                 )
             )
 
     def create_link_list(self, meteo_number):
+        """
+        Generate a link list for a given meteo situation.
+
+        Parameters
+        ----------
+        meteo_number : int
+            Meteo situation referenced by the number.
+
+        Returns
+        -------
+        link_target_path_list : list of Path
+            List of the targets which need to be linked for GRAL as input.
+        link_name_list : list of str
+            List of the file names for the links in the simulation directory.
+        """
+        link_target_path_list, link_name_list = self.create_link_list_config()
+        lists_wind = self.create_link_list_wind(meteo_number)
+        link_target_path_list += lists_wind[0]
+        link_name_list += lists_wind[1]
+        return link_target_path_list, link_name_list
+
+    def create_link_list_config(self):
         link_target_path_list = [target for target in self.config_path.iterdir()]
         link_name_list = [target.name for target in link_target_path_list]
+        return link_target_path_list, link_name_list
 
+    def create_link_list_wind(self, meteo_number):
+        link_target_path_list = []
+        link_name_list = []
         for suffix in [".wnd", ".scl"]:
             target_name = "{:05}{}".format(meteo_number, suffix)
             link_target_path_list.append(self.catalog_path / target_name)
@@ -202,82 +234,109 @@ class Catalog:
             )  # Use only one meteo situation per simulation
         return link_target_path_list, link_name_list
 
-    def run_simulations(self, n_simulations=None):
-        # todo: make more readable and cleaner and connect with
-        # 'wait_for_simulations'
+    def create_meteo_text(self, meteo_number):
+        meteo_id = meteo_number - 1
+        n_line = meteo_id + N_HEADER
+        meteo_text = "\n".join(
+            self.meteopgt[:N_HEADER] + self.meteopgt[n_line : n_line + 1]
+        )
+        return meteo_text
 
+    def get_simulations(self, status=None):
+        """
+        Returns all simulations with the specified status.
+
+        Parameters
+        ----------
+        status : State, optional
+            Status of the simulation, by default None
+
+        Returns
+        -------
+        simulations : list of Simulation
+            List of simulations with the specified state.
+        """
+        if status is None:
+            simulations = self.simulations
+        else:
+            simulations = []
+            for simulation in self.simulations:
+                if simulation.status == status:
+                    simulations.append(simulation)
+        return simulations
+
+    def print_runtime_info(self, start, len_queue, len_parallel_simulations):
+        current_time = time.time() - start
+        days = current_time // (24 * 60 * 60)
+        hours = current_time // (60 * 60)
+        min = current_time // 60
+        print(
+            "Queue size: {} Currently running: {} running since {} days {}:{}\r".format(
+                len_queue,
+                len_parallel_simulations,
+                days,
+                hours,
+                min,
+            )
+        )
+
+    def run_simulations(self, n_limit=None):
         if self.read_only:
             print(
-                "Catalog is set to read-only. If you wish to run simulations, please \
-initialize with 'read_only = False'."
+                "Catalog is set to read-only. If you wish to run simulations, please"
+                + "initialize with 'read_only = False'."
             )
             return -1
 
-        n_initialized = 0
-        for sim in self.simulations:
-            if sim.get_status() == Status.init:
-                n_initialized += 1
+        queue = self.get_simulations(Status.init)
 
-        if n_simulations == None:
-            n_simulations = n_initialized
+        # Limit queue length for testing or performance reasons
+        if n_limit is not None:
+            queue = queue[n_limit]
 
         # Limit to 5 parallel processes as 12 threads are used per simulation
         # on a server with 72 threads. The number of parallel processes should not be
         # higher than 5 as the RAM of the server is not sufficient.
-        n_limit = 5
-        start = time.perf_counter()
-        while True:
-            n_running = 0
-            n_queue = 0
-            for sim in self.simulations:
-                if sim.get_status() == Status.running:
-                    n_running += 1
-                if sim.get_status() == Status.init:
-                    n_queue += 1
-
-            if n_queue == 0 and n_running == 0:
-                break
-
-            for sim in self.simulations:
-                if n_running >= n_limit or (n_initialized - n_queue) >= n_simulations:
-                    break
-                if sim.get_status() == Status.init:
-                    sim.run()
-                    n_running += 1
-                    n_queue -= 1
-
+        n_parallel_max = 5
+        parallel_simulations = []
+        start = time.time()
+        while len(queue) > 0:
+            # Start new simulation if space is available
+            if len(parallel_simulations) < n_parallel_max:
+                new_simulation = queue.pop()
+                new_simulation.run()
+                parallel_simulations.append(new_simulation)
+            # Throw out terminated simulations
+            for simulation in parallel_simulations:
+                if not simulation.get_status() == Status.running:
+                    parallel_simulations.remove(simulation)
+            # Display info
             time.sleep(2)
-            current_time = time.perf_counter() - start
-            print(
-                "Queue size: {} Currently running: {} Time running: {} min \r".format(
-                    n_queue, n_running, int(current_time) // 60
-                )
-            )
+            self.print_runtime_info(start, len(queue), len(parallel_simulations))            
 
     def wait_for_simulations(self):
-        print("Wait with me until all simulations are finished.")
-        start = time.perf_counter()
-        while True:
-            counter = len(self.simulations)
-            for sim in self.simulations:
-                # print("{}\r".format(STATUS_NAMES[sim.get_status()]))
-                if sim.get_status() != Status.running:
-                    counter -= 1
+        # Count running simulations
+        parallel_simulations = []
+        for simulation in self.simulations:
+            if simulation.status == Status.running:
+                parallel_simulations.append(simulation)
 
-            current_time = time.perf_counter() - start
-            # To do: add display for hours and minutes
-            print(
-                "{} Simulations still running for {}s. \r".format(
-                    counter, int(current_time)
-                ),
-                end="",
-            )
-            if counter == 0:
-                break
-            time.sleep(2)
+        if len(parallel_simulations) > 0:
+            print("Wait with me until all simulations are finished.")
+            len_queue = 0 # No queue left, only running simulations
+            start = time.time()
+            while len(parallel_simulations) > 0:
+                # Throw out terminated simulations
+                for simulation in parallel_simulations:
+                    if not simulation.get_status() == Status.running:
+                        parallel_simulations.remove(simulation)
+                # Display info
+                time.sleep(2)
+                self.print_runtime_info(start, len_queue, len(parallel_simulations))
 
     def collect_simulations(self):
-        print("I am collecting the results of the simulations!")
+        # print("I am collecting the results of the simulations!")
+        pass
 
     def __del__(self):
         if not self.read_only:

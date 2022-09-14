@@ -26,6 +26,8 @@ class Catalog:
         Path to the GRAMM simulation results (see Notes).
     sim_path : like `pathlib.Path`
         Path to the GRAL simulation directory (see Notes).
+    config_path : like `pathlib.Path`
+        Path to the config directory inside the GRAMM directory (see Notes).
     read_only : bool, optional
         Flag if the catalog should only be read.
 
@@ -44,13 +46,14 @@ class Catalog:
 
     Methods
     -------
-    get_status()
-    read_dir()
-    add_simulations(n_simulations)
-    create_link_list(meteo_number)
-    run_simulations(n_simulations)
+    get_info()
+        Get information about the current status.
+    init_simulations(n_limit=None)
+        Initialize simulations for a run.
+    run_simulations(n_limit=None)
+        Start a run of initialized simulations.
     wait_for_simulations()
-    collect_simulations()
+        Wait until the simulations are finished.
 
     Notes
     -----
@@ -58,14 +61,15 @@ class Catalog:
 
     - `catalog_path`
 
-        - "config"
-
-            - [config files]
-        - "meteopgt.all"
         - [GRAMM ".scl" and ".wnd" files]
 
-    - `sim_path`
+    - `config_path`
 
+        - [config files]
+        - "meteopgt.all" 
+
+    - `sim_path`
+    
         - ["sim_group_####"]
 
             - [data from GRAL simulation ####]

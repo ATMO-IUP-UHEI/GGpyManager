@@ -10,10 +10,6 @@ setup(
     install_requires=[
         "scipy",
         "numpy",
-        "time",
-        "pathlib",
-        "subprocess",
-        "dataclass",
         "pytest",
 
     ],  # external packages as dependencies

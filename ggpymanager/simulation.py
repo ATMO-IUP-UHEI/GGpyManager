@@ -249,6 +249,30 @@ class Simulation:
                 self.status = Status.finished
         return self.status
 
+    def get_paths(self, suffix=None):
+        """
+        Return a list of paths in the simulation directory. The paths can be filtered by
+        their suffix
+
+        Parameters
+        ----------
+        suffix : str, optional
+            Suffix of the paths, by default None
+
+        Returns
+        -------
+        path_list : list of  str
+            All paths with the specified suffix.
+        """
+        path_list = []
+        for p in self.sim_sub_path.iterdir():
+            if suffix is None:
+                path_list.append(p)
+            elif p.suffix == suffix:
+                path_list.append(p)
+        return path_list
+        
+
     def __repr__(self):
         return "Sim {} status: {}.".format(
             self.sim_sub_path.name, self.status

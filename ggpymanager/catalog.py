@@ -6,8 +6,12 @@ which can be started to efficiently use the available computation power.
 
 import time
 from pathlib import Path
+from multiprocessing import Pool
+import numpy as np
 
 from .simulation import Simulation, Status
+from . import utils
+
 
 N_HEADER = 2  # Number of header lines in the "meteopgt.all" file
 
@@ -66,10 +70,10 @@ class Catalog:
     - `config_path`
 
         - [config files]
-        - "meteopgt.all" 
+        - "meteopgt.all"
 
     - `sim_path`
-    
+
         - ["sim_group_####"]
 
             - [data from GRAL simulation ####]
@@ -81,7 +85,7 @@ class Catalog:
         self.sim_path = Path(sim_path)
         self.read_only = read_only
 
-        self.config_path = config_path
+        self.config_path = Path(config_path)
         self.meteopgt = self.get_meteopgt()
 
         self.total_sim = len(self.meteopgt) - N_HEADER
@@ -147,11 +151,11 @@ class Catalog:
             if path.is_dir():
                 for subpath in path.iterdir():
                     if subpath.suffix == suffix:
-                        meteo_number = int(path.stem)
+                        meteo_number = int(path.stem.split("_")[0])
                         missing_list.remove(meteo_number)
                         break
             elif path.suffix == suffix:
-                meteo_number = int(path.stem)
+                meteo_number = int(path.stem.split("_")[0])
                 missing_list.remove(meteo_number)
         return missing_list
 
@@ -177,13 +181,13 @@ class Catalog:
         n_limit : in, optional
             Limit of simulations to initialize, by default None
         """
-        gral_missing_list = self.get_gral_missing()
+        gral_list = [i + 1 for i in range(self.total_sim)]
 
         # Only add a limited amount of simulations
         if n_limit is not None:
-            gral_missing_list = gral_missing_list[:n_limit]
+            gral_list = gral_list[:n_limit]
 
-        for meteo_number in gral_missing_list:
+        for meteo_number in gral_list:
             # Create a subpath from the `meteo_number`
             sim_sub_path = self.sim_path / "{:05}_sim".format(meteo_number)
             link_target_path_list, link_name_list = self.create_link_list(meteo_number)
@@ -271,9 +275,9 @@ class Catalog:
 
     def print_runtime_info(self, start, len_queue, len_parallel_simulations):
         current_time = time.time() - start
-        days = current_time // (24 * 60 * 60)
-        hours = current_time // (60 * 60)
-        min = current_time // 60
+        days = int(current_time // (24 * 60 * 60))
+        hours = int(current_time // (60 * 60))
+        min = int(current_time // 60)
         print(
             "Queue size: {} Currently running: {} running since {} days {}:{}\r".format(
                 len_queue,
@@ -281,7 +285,8 @@ class Catalog:
                 days,
                 hours,
                 min,
-            )
+            ),
+            end="",
         )
 
     def run_simulations(self, n_limit=None):
@@ -316,7 +321,7 @@ class Catalog:
                     parallel_simulations.remove(simulation)
             # Display info
             time.sleep(2)
-            self.print_runtime_info(start, len(queue), len(parallel_simulations))            
+            self.print_runtime_info(start, len(queue), len(parallel_simulations))
 
     def wait_for_simulations(self):
         # Count running simulations
@@ -327,7 +332,7 @@ class Catalog:
 
         if len(parallel_simulations) > 0:
             print("Wait with me until all simulations are finished.")
-            len_queue = 0 # No queue left, only running simulations
+            len_queue = 0  # No queue left, only running simulations
             start = time.time()
             while len(parallel_simulations) > 0:
                 # Throw out terminated simulations
@@ -341,6 +346,23 @@ class Catalog:
     def collect_simulations(self):
         # print("I am collecting the results of the simulations!")
         pass
+
+    def save_simulations_as_npz(self, n_processes=1):
+        if not self.read_only:
+            # Save all finished simulations
+            for simulation in self.get_simulations(Status.finished):
+                con_path_list = simulation.get_paths(suffix=".con")
+                with Pool(n_processes) as pool:
+                    con_list = pool.map(utils.con_file_as_sparse_matrix, con_path_list)
+                # Create the data structure
+                file_dict = {}
+                for con, path in zip(con_list, con_path_list):
+                    key = path.stem.split("-")[1]
+                    file_dict[key] = con
+                target_path = simulation.sim_sub_path / "con.npz"
+                np.savez(target_path, **file_dict)
+        else:
+            raise Exception("Read only")
 
     def __del__(self):
         if not self.read_only:

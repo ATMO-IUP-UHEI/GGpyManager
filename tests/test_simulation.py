@@ -51,3 +51,4 @@ def test_simulation(data_path):
     simulation.run()
     time.sleep(1)
     assert simulation.get_status() == Status.finished
+    simulation.get_paths()

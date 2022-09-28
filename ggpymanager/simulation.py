@@ -78,11 +78,7 @@ class Simulation:
     -------
     run()
     get_status()
-    clean_simulation_path() -- Not implemented
-
-    Notes
-    -----
-    To do
+    get_paths(suffix=None)    
     """
 
     def __init__(
@@ -136,8 +132,11 @@ class Simulation:
                     self.link_name_list.remove(p.name)
                     self.link_target_path_list.remove(p.readlink())
                 except:
-                    self.status = State("Unknown symlink {}".format(p), -1)
-                    return -1
+                    pass
+                    # Cannot raise error if unknown link is present, because 
+                    # wind files from a previous GRAL run could be linked as well.
+                    # self.status = State("Unknown symlink {}".format(p), -1)
+                    # return -1
         if len(self.link_name_list) != 0 or len(self.link_target_path_list) != 0:
             self.status = State(
                 name="Links missing {} or {}".format(
@@ -211,6 +210,9 @@ class Simulation:
         """
         If the simulation is initialized, the GRAL run is started.
         """
+        self.test_for_init()
+        self.test_for_running()
+        self.test_for_finished()
         if self.status == Status.init:
             # Open logfiles
             self.logfile = self.logfile_path.open("w")

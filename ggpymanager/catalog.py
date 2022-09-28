@@ -289,7 +289,7 @@ class Catalog:
             end="",
         )
 
-    def run_simulations(self, n_limit=None):
+    def run_simulations(self, n_processes=5, n_limit=None):
         if self.read_only:
             print(
                 "Catalog is set to read-only. If you wish to run simulations, please"
@@ -300,13 +300,13 @@ class Catalog:
         queue = self.get_simulations(Status.init)
 
         # Limit queue length for testing or performance reasons
-        if n_limit is not None:
-            queue = queue[n_limit]
+        if n_limit is not None and n_limit < len(queue):
+            queue = queue[:n_limit]
 
         # Limit to 5 parallel processes as 12 threads are used per simulation
         # on a server with 72 threads. The number of parallel processes should not be
         # higher than 5 as the RAM of the server is not sufficient.
-        n_parallel_max = 5
+        n_parallel_max = n_processes
         parallel_simulations = []
         start = time.time()
         while len(queue) > 0:

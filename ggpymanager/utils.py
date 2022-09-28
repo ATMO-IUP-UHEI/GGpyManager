@@ -3,6 +3,41 @@ import numpy as np
 from dataclasses import dataclass
 from scipy import sparse
 
+
+@dataclass
+class GRAMM:
+    """
+    All constants related to the GRAMM domain.
+
+    Parameters
+    ----------
+    nx : int
+        Number of cells in x-direction.
+    ny : int
+        Number of cells in y-direction.
+    nz : int
+        Number of cells in z-direction.
+    dx
+        Cell width in x-direction in [m].
+    dy
+        Cell width in y-direction in [m].
+    xmin
+        x-coordinate of the left-lower (south-west) corner of the GRAMM domain in
+        Gauß-Krueger coordinates.
+    ymin
+        y-coordinate of the left-lower (south-west) corner of the GRAMM domain in
+        Gauß-Krueger coordinates.
+    """
+
+    nx: int = 200
+    ny: int = 201
+    nz: int = 22
+    xmin: int = 3466700
+    ymin: int = 5465000
+    xmax: int = 3486700
+    ymax: int = 5485000
+
+
 @dataclass
 class GRAL:
     """
@@ -18,23 +53,202 @@ class GRAL:
         Number of cells in z-direction.
     dx
         Cell width in x-direction in [m].
-    dy 
+    dy
         Cell width in y-direction in [m].
-    xmin 
-        x-coordinate of the left-lower (south-west) corner of the GRAMM domain in 
+    xmin
+        x-coordinate of the left-lower (south-west) corner of the GRAL domain in
         Gauß-Krueger coordinates.
     ymin
-        y-coordinate of the left-lower (south-west) corner of the GRAMM domain in 
+        y-coordinate of the left-lower (south-west) corner of the GRAL domain in
         Gauß-Krueger coordinates.
     """
+
     nx: int = 1227
     ny: int = 1232
     nz: int = 400
-    dx: float = 10.
-    dy: float = 10.
-    xmin: float = 3471259.
-    ymin: float = 5468979.
+    dx: float = 10.0
+    dy: float = 10.0
+    xmin: int = 3471259
+    ymin: int = 5468979
 
+
+def read_landuse(path, GRAMM=GRAMM):
+    f = open(path, "r")
+    data = f.readlines()
+    f.close()
+
+    thermalcondu = data[
+        0
+    ].split()  # it is actually heatcondu/thermalcondu/900  ->  thermalcondu=1/(data[0]*900/data[1])
+    thermalcondu = [float(i) for i in thermalcondu]
+
+    heatcondu = data[1].split()
+    heatcondu = [float(i) for i in heatcondu]
+
+    thermalcondu = np.divide(1, np.divide(thermalcondu, heatcondu) * 900)
+    # thermalcondu = [round_sig(i) for i in thermalcondu]
+
+    roughness = data[2].split()
+    roughness = [float(i) for i in roughness]
+
+    moisture = data[3].split()
+    moisture = [float(i) for i in moisture]
+
+    emiss = data[4].split()
+    emiss = [float(i) for i in emiss]
+
+    albedo = data[5].split()
+    albedo = [float(i) for i in albedo]
+
+    landuse_ind = 0
+    thermalcondum = np.zeros((GRAMM.nx, GRAMM.ny), float)
+    heatcondum = np.zeros((GRAMM.nx, GRAMM.ny), float)
+    roughnessm = np.zeros((GRAMM.nx, GRAMM.ny), float)
+    moisturem = np.zeros((GRAMM.nx, GRAMM.ny), float)
+    emissm = np.zeros((GRAMM.nx, GRAMM.ny), float)
+    albedom = np.zeros((GRAMM.nx, GRAMM.ny), float)
+
+    for i in range(GRAMM.ny):
+        for j in range(GRAMM.nx):
+            thermalcondum[j, i] = float(thermalcondu[landuse_ind])
+            heatcondum[j, i] = float(heatcondu[landuse_ind])
+            roughnessm[j, i] = float(roughness[landuse_ind])
+            moisturem[j, i] = float(moisture[landuse_ind])
+            emissm[j, i] = float(emiss[landuse_ind])
+            albedom[j, i] = float(albedo[landuse_ind])
+            landuse_ind += 1
+
+    return thermalcondum, heatcondum, roughnessm, moisturem, emissm, albedom
+
+
+def read_topography(path):
+    f = open(path, "r")
+    data = f.readlines()
+    f.close()
+    tmp = data[1].split()
+    topo_ind = 0
+    topo = np.zeros((GRAMM.nx, GRAMM.ny), np.float)
+    for j in range(GRAMM.ny):
+        for i in range(GRAMM.nx):
+            topo[i, j] = float(tmp[topo_ind])
+            topo_ind += 1
+
+    # Z Grid
+    tmp = data[8].split()
+    zgrid = np.zeros([GRAMM.nx, GRAMM.ny, GRAMM.nz], np.float)
+    ind = 0
+    for k in range(GRAMM.nz):
+        for j in range(GRAMM.ny):
+            for i in range(GRAMM.nx):
+                zgrid[i, j, k] = float(tmp[ind])
+                ind += 1
+
+    return topo, zgrid
+
+
+def read_gramm_windfield(path):
+    with path.open("rb") as f:
+        data = f.read()
+
+    nheader = 20  # header, ni,nj,nz,gridsize -> 4*signed integer (=4*4) + float (4)
+    header, nx, ny, nz, dx = struct.unpack("<iiiif", data[:nheader])
+
+    dt = np.dtype(np.short)
+
+    info = np.frombuffer(data[: nheader - 4], dtype=np.int32)
+    grid_size = np.frombuffer(data[nheader - 4 : nheader], dtype=np.float32)
+    datarr = np.frombuffer(data[nheader:], dtype=dt)
+    datarr = np.reshape(datarr, [nx, ny, nz, 3])
+    wind_u = datarr[:, :, :, 0] * 0.01
+    wind_v = datarr[:, :, :, 1] * 0.01
+    wind_w = datarr[:, :, :, 2] * 0.01
+    umag = np.hypot(wind_u[:, :, :], wind_v[:, :, :])
+
+    return info, wind_u, wind_v
+
+
+def read_buildings(path, GRAL=GRAL):
+    data = np.genfromtxt(path, delimiter=",")
+
+    buildings = np.zeros((GRAL.nx, GRAL.ny))
+
+    x = data[:, 0]
+    y = data[:, 1]
+
+    idx = ((x - GRAL.xmin) / GRAL.dx).astype(int)
+    idy = ((y - GRAL.ymin) / GRAL.dy).astype(int)
+
+    buildings[idx, idy] = data[:, 3]
+    return buildings
+
+
+def read_gral_geometries(path):
+    with open(path, mode="rb") as binfile:
+        byte_list = binfile.read()
+        binfile.close()
+
+    nheader = 32
+    header = byte_list[:nheader]
+    nz, ny, nx, ikooagral, jkooagral, dzk, stretch, ahmin = struct.unpack(
+        "iiiiifff", header
+    )
+    print(dzk, stretch)
+    blub = byte_list[nheader:]
+    # float and int32 -> 4byte each
+    # somehow the array is padded with 0? Therefore it is 1 cell bigger in x- and y-dimension
+    datarr = np.zeros([nx + 1, ny + 1, 3])
+    c = 0
+    for i in range(nx + 1):
+        for j in range(ny + 1):
+            datarr[i, j, 0] = np.frombuffer(blub[c : (c + 4)], dtype=np.float32)
+            datarr[i, j, 1] = np.frombuffer(blub[(c + 4) : (c + 8)], dtype=np.int32)
+            datarr[i, j, 2] = np.frombuffer(
+                blub[(c + 8) : (c + 12)], dtype=np.float32
+            )
+            c += 12
+
+    # remove the padding with zeroes at both ends
+    ahk = datarr[:-1, :-1, 0]  # surface elevation
+    kkart = datarr[:-1, :-1, 1].astype(int)  # index of gral surface
+    bui_height = datarr[:-1, :-1, 2]  # building height
+    oro = ahk - bui_height  # orography / topography (without buildings!)
+
+    return ahk, kkart, bui_height, oro
+
+
+def read_gral_windfield(path):
+    if zipfile.is_zipfile(path):
+        gff = zipfile.ZipFile(path, "r")
+
+        for filename in gff.namelist():
+            byte_list = gff.read(filename)
+            gff.close()
+
+    else:
+        with open(path, mode="rb") as binfile:
+            byte_list = binfile.read()
+            binfile.close()
+
+    nheader = 32
+    header = byte_list[:nheader]
+    nz, ny, nx, direction, speed, akla, dxy, h = struct.unpack("iiiffifi", header)
+    # convert direction to degree (strange, but seems to work)
+    direction = 270.0 - np.rad2deg(direction)
+
+    dt = np.dtype(np.short)
+
+    count = (nx + 1) * (ny + 1) * (nz + 1) * 3
+
+    # data = np.fromstring(byte_list[nheader:len(byte_list)], dtype=dt, count=count, sep='')
+    data = np.frombuffer(byte_list[nheader:], dtype=dt, count=count)
+
+    data = np.reshape(data, [nx + 1, ny + 1, nz + 1, 3])
+    ux = data[:, :, :, 0] * 0.01
+    vy = data[:, :, :, 1] * 0.01
+    wz = data[:, :, :, 2] * 0.01
+
+    # print("done loading GRAL flowfields")
+    return ux, vy, wz
 
 def read_con_file(path, GRAL=GRAL):
     with path.open("rb") as f:
@@ -57,6 +271,7 @@ def read_con_file(path, GRAL=GRAL):
     con[idx, idy] = datarr[:, 2]
 
     return con
+
 
 def con_file_as_sparse_matrix(path, GRAL=GRAL):
     con = read_con_file(path, GRAL)

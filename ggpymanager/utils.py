@@ -2,7 +2,7 @@ import struct
 import numpy as np
 from dataclasses import dataclass
 from scipy import sparse
-
+import zipfile
 
 @dataclass
 class GRAMM:
@@ -36,6 +36,12 @@ class GRAMM:
     ymin: int = 5465000
     xmax: int = 3486700
     ymax: int = 5485000
+    dx: float = (xmax - xmin) / nx
+    dy: float = (ymax - ymin) / ny
+    xmesh, ymesh = np.meshgrid(xmin + dx * np.arange(nx), ymin + dy * np.arange(ny))
+    xcmesh, ycmesh = np.meshgrid(
+        xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
+    )
 
 
 @dataclass
@@ -70,7 +76,10 @@ class GRAL:
     dy: float = 10.0
     xmin: int = 3471259
     ymin: int = 5468979
-
+    xmesh, ymesh = np.meshgrid(xmin + dx * np.arange(nx), ymin + dy * np.arange(ny))
+    xcmesh, ycmesh = np.meshgrid(
+        xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
+    )
 
 def read_landuse(path, GRAMM=GRAMM):
     f = open(path, "r")
@@ -192,7 +201,7 @@ def read_gral_geometries(path):
     nz, ny, nx, ikooagral, jkooagral, dzk, stretch, ahmin = struct.unpack(
         "iiiiifff", header
     )
-    print(dzk, stretch)
+    # print(dzk, stretch)
     blub = byte_list[nheader:]
     # float and int32 -> 4byte each
     # somehow the array is padded with 0? Therefore it is 1 cell bigger in x- and y-dimension
@@ -202,9 +211,7 @@ def read_gral_geometries(path):
         for j in range(ny + 1):
             datarr[i, j, 0] = np.frombuffer(blub[c : (c + 4)], dtype=np.float32)
             datarr[i, j, 1] = np.frombuffer(blub[(c + 4) : (c + 8)], dtype=np.int32)
-            datarr[i, j, 2] = np.frombuffer(
-                blub[(c + 8) : (c + 12)], dtype=np.float32
-            )
+            datarr[i, j, 2] = np.frombuffer(blub[(c + 8) : (c + 12)], dtype=np.float32)
             c += 12
 
     # remove the padding with zeroes at both ends
@@ -243,12 +250,14 @@ def read_gral_windfield(path):
     data = np.frombuffer(byte_list[nheader:], dtype=dt, count=count)
 
     data = np.reshape(data, [nx + 1, ny + 1, nz + 1, 3])
-    ux = data[:, :, :, 0] * 0.01
-    vy = data[:, :, :, 1] * 0.01
-    wz = data[:, :, :, 2] * 0.01
+    # Cut out zeros at the border
+    ux = data[:-1, :-1, 1:, 0] * 0.01
+    vy = data[:-1, :-1, 1:, 1] * 0.01
+    wz = data[:-1, :-1, 1:, 2] * 0.01
 
     # print("done loading GRAL flowfields")
     return ux, vy, wz
+
 
 def read_con_file(path, GRAL=GRAL):
     with path.open("rb") as f:

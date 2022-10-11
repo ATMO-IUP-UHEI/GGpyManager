@@ -26,10 +26,13 @@ class State:
         self.value = value
 
     def __eq__(self, __o: object) -> bool:
-        if self.value == __o.value:
-            return True
+        if isinstance(__o, int):
+            return self.value == __o
         else:
-            return False
+            if self.value == __o.value:
+                return True
+            else:
+                return False
 
     def __repr__(self) -> str:
         return self.name
@@ -109,10 +112,11 @@ class Simulation:
         self.file_list_for_storage = []
 
         # Read or create simulation directory
-        if self.sim_sub_path.exists():
-            self.read_dir()
-        elif not read_only:
-            self.setup_input()
+        if not read_only:
+            if self.sim_sub_path.exists():
+                self.read_dir()
+            else:
+                self.setup_input()
 
     def test_for_init(self):
         # Check if meteo file is identical
@@ -211,8 +215,8 @@ class Simulation:
         If the simulation is initialized, the GRAL run is started.
         """
         self.test_for_init()
-        self.test_for_running()
-        self.test_for_finished()
+        # self.test_for_running()
+        # self.test_for_finished()
         if self.status == Status.init:
             # Open logfiles
             self.logfile = self.logfile_path.open("w")

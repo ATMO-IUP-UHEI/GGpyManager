@@ -8,8 +8,8 @@ from .catalog import Catalog
 from . import utils
 
 class Reader(Catalog):
-    def __init__(self, catalog_path, sim_path, config_path):
-        super().__init__(catalog_path, sim_path, config_path)
+    def __init__(self, catalog_path, config_path, sim_path):
+        super().__init__(catalog_path, config_path, sim_path)
         self.init_simulations()
 
     def get_landuse(self):
@@ -51,7 +51,7 @@ class Reader(Catalog):
         wind_v
             Wind in y-direction.
         """
-        return utils.read_gramm_windfield(self.simulations[sim_id] / "00001.wnd")
+        return utils.read_gramm_windfield(self.simulations[sim_id].sim_sub_path / "00001.wnd")
 
     def get_buildings(self):
         """
@@ -76,7 +76,7 @@ class Reader(Catalog):
             Surface elevation without buildings.
         """
         # Read geometries from one simulation which finished
-        path = self.get_simulations(Status.finished).sim_sub_path / "GRAL_geometries.txt"
+        path = self.get_simulations(Status.finished)[0].sim_sub_path / "GRAL_geometries.txt"
         return utils.read_gral_geometries(path)
 
     def get_gral_windfield(self, sim_id):

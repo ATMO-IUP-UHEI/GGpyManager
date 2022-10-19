@@ -281,7 +281,20 @@ def read_con_file(path, GRAL=GRAL):
 
     return con
 
-
 def con_file_as_sparse_matrix(path, GRAL=GRAL):
     con = read_con_file(path, GRAL)
     return sparse.csr_matrix(con)
+
+def read_gral_concentration(path):
+    con_dict = {}
+    conc_file = np.load(path, allow_pickle=True)        
+    for key in conc_file:
+        con_matrix = conc_file[key].all().toarray()
+        con_dict[key] = con_matrix
+    return con_dict
+    # con_dict = {}
+    # with np.load(path, allow_pickle=True, mmap_mode="r") as conc_file:            
+    #     for key in conc_file:
+    #         con_matrix = conc_file[key].all().toarray()
+    #         con_dict[key] = con_matrix
+    # return con_dict

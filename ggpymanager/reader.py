@@ -104,10 +104,5 @@ class Reader(Catalog):
             "hxx" with the height "h" and the source group "xx". Not all source groups
             have written output.
         """
-        con_dict = {}
         path = self.simulations[sim_id].sim_sub_path / "con.npz"
-        with np.load(path, allow_pickle=True, mmap_mode="r") as conc_file:            
-            for key in conc_file:
-                con_matrix = conc_file[key].all().toarray()
-                con_dict[key] = con_matrix
-        return con_dict
+        return utils.read_gral_concentration(path)

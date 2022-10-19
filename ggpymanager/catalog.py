@@ -351,16 +351,17 @@ class Catalog:
         if not self.read_only:
             # Save all finished simulations
             for simulation in self.get_simulations(Status.finished):
-                con_path_list = simulation.get_paths(suffix=".con")
-                with Pool(n_processes) as pool:
-                    con_list = pool.map(utils.con_file_as_sparse_matrix, con_path_list)
-                # Create the data structure
-                file_dict = {}
-                for con, path in zip(con_list, con_path_list):
-                    key = path.stem.split("-")[1]
-                    file_dict[key] = con
                 target_path = simulation.sim_sub_path / "con.npz"
-                np.savez(target_path, **file_dict)
+                if target_path.exists() == False:
+                    con_path_list = simulation.get_paths(suffix=".con")
+                    with Pool(n_processes) as pool:
+                        con_list = pool.map(utils.con_file_as_sparse_matrix, con_path_list)
+                    # Create the data structure
+                    file_dict = {}
+                    for con, path in zip(con_list, con_path_list):
+                        key = path.stem.split("-")[1]
+                        file_dict[key] = con
+                    np.savez(target_path, **file_dict)
         else:
             raise Exception("Read only")
 

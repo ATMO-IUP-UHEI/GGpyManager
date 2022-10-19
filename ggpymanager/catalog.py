@@ -167,7 +167,7 @@ class Catalog:
 
     def get_gral_missing(self):
         gral_missing_list = self.get_missing_files(
-            search_path=self.sim_path, suffix=".gff"
+            search_path=self.sim_path, suffix=".con"
         )
         return gral_missing_list
 

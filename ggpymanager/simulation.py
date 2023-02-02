@@ -112,10 +112,11 @@ class Simulation:
         self.file_list_for_storage = []
 
         # Read or create simulation directory
-        if not read_only:
-            if self.sim_sub_path.exists():
-                self.read_dir()
-            else:
+        if self.sim_sub_path.exists():
+            self.read_dir()
+        else:
+            self.status = Status.init
+            if not read_only:
                 self.setup_input()
 
     def test_for_init(self):

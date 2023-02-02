@@ -1,5 +1,5 @@
-ggpymanager package
-===================
+GGPyManager
+===========
 
 Submodules
 ----------

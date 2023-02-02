@@ -10,7 +10,9 @@ Welcome to GGPyManager's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   modules
+   install
+   notebooks/example.ipynb
+   api
 
 
 

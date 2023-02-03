@@ -6,6 +6,12 @@
 Welcome to GGPyManager's documentation!
 =======================================
 
+Overview
+--------
+
+.. graphviz:: structure.dot
+   :caption: Structure of the simulation directories and the ``Reader`` from the ``GGPyManager``.
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:

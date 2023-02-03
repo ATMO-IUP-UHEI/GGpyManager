@@ -30,6 +30,7 @@ author = "Robert Maiwald"
 # ones.
 extensions = [
     "sphinx.ext.napoleon",
+    "sphinx.ext.graphviz",
     "nbsphinx",
 ]
 

@@ -80,8 +80,12 @@ class Simulation:
     Methods
     -------
     run()
+        Start a GRAL run.
     get_status()
-    get_paths(suffix=None)    
+        Get the current status of the simulation.
+    get_paths(suffix=None)
+        Return a list of paths in the simulation directory. The paths can be filtered by
+        their suffix.    
     """
 
     def __init__(
@@ -213,7 +217,9 @@ class Simulation:
 
     def run(self):
         """
-        If the simulation is initialized, the GRAL run is started.
+        Start a GRAL run.
+
+        If the simulation has the Status "init", start the run.
         """
         self.test_for_init()
         # self.test_for_running()
@@ -259,7 +265,7 @@ class Simulation:
     def get_paths(self, suffix=None):
         """
         Return a list of paths in the simulation directory. The paths can be filtered by
-        their suffix
+        their suffix.
 
         Parameters
         ----------
@@ -286,4 +292,5 @@ class Simulation:
         )
 
     def clean_simulation_path(self):
+        # Not yet implemented but it might be useful to delete auxiliary files
         pass

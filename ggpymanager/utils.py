@@ -1,3 +1,7 @@
+"""
+Utility functions partly adapted from Ivo Suter.
+"""
+
 import struct
 import numpy as np
 from dataclasses import dataclass

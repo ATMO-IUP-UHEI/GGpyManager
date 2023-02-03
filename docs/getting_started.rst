@@ -54,7 +54,7 @@ If there are already some simulations in the directory that are finished or that
     for sim in catalog.simulations:
         detailed_info_dict[sim.status.name] += 1
 
-The GRAL simulations can be started in parralel with ``n_processes`` as the number of parallel GRAL runs and ``n_limit`` as the number of simulations to be computed. If ``n_limit`` is ``None`` all initialized simulations are run.
+The GRAL simulations can be started in parallel with ``n_processes`` as the number of parallel GRAL runs and ``n_limit`` as the number of simulations to be computed. If ``n_limit`` is ``None`` all initialized simulations are run.
 
 .. code-block:: python
     :linenos:

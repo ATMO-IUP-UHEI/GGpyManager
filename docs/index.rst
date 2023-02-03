@@ -17,6 +17,7 @@ Overview
    :caption: Contents:
 
    install
+   getting_started
    notebooks/example.ipynb
    api
 
@@ -26,5 +27,5 @@ Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`modindex`
+.. * :ref:`modindex`
 * :ref:`search`

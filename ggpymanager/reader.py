@@ -60,7 +60,7 @@ class Reader(Catalog):
         """
         Returns
         -------
-        buildings
+        buildings : np.array
             Building height.
         """
         return utils.read_buildings(self.config_path / "buildings.dat")

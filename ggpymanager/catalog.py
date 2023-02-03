@@ -48,19 +48,6 @@ class Catalog:
     simulations : list of Simulations
         List with all GRAL simulations associated with this catalog (see Notes).
 
-    Methods
-    -------
-    get_info()
-        Get information about the current status.
-    init_simulations(n_limit=None)
-        Initialize simulations for a run.
-    run_simulations(n_processes=5, n_limit=None)
-        Start a run of initialized simulations.
-    wait_for_simulations()
-        Wait until the simulations are finished.
-    save_simulations_as_npz(n_processes=1)
-        Save concentration fields as sparse arrays.
-
     Notes
     -----
     Path structure:

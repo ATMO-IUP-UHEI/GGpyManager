@@ -76,16 +76,6 @@ class Simulation:
     meteo_text : str
     logfile_path : pathlib Path
     error_logfile_path : pathlib Path
-
-    Methods
-    -------
-    run()
-        Start a GRAL run.
-    get_status()
-        Get the current status of the simulation.
-    get_paths(suffix=None)
-        Return a list of paths in the simulation directory. The paths can be filtered by
-        their suffix.    
     """
 
     def __init__(

@@ -76,12 +76,6 @@ class Simulation:
     meteo_text : str
     logfile_path : pathlib Path
     error_logfile_path : pathlib Path
-
-    Methods
-    -------
-    run()
-    get_status()
-    get_paths(suffix=None)    
     """
 
     def __init__(
@@ -213,7 +207,9 @@ class Simulation:
 
     def run(self):
         """
-        If the simulation is initialized, the GRAL run is started.
+        Start a GRAL run.
+
+        If the simulation has the Status "init", start the run.
         """
         self.test_for_init()
         # self.test_for_running()
@@ -259,7 +255,7 @@ class Simulation:
     def get_paths(self, suffix=None):
         """
         Return a list of paths in the simulation directory. The paths can be filtered by
-        their suffix
+        their suffix.
 
         Parameters
         ----------
@@ -286,4 +282,5 @@ class Simulation:
         )
 
     def clean_simulation_path(self):
+        # Not yet implemented but it might be useful to delete auxiliary files
         pass

@@ -8,6 +8,9 @@ from .catalog import Catalog
 from . import utils
 
 class Reader(Catalog):
+    """
+    Class to read out GRAMM-GRAL output.
+    """
     def __init__(self, catalog_path, config_path, sim_path):
         super().__init__(catalog_path, config_path, sim_path)
         self.init_simulations()
@@ -57,7 +60,7 @@ class Reader(Catalog):
         """
         Returns
         -------
-        buildings
+        buildings : np.array
             Building height.
         """
         return utils.read_buildings(self.config_path / "buildings.dat")

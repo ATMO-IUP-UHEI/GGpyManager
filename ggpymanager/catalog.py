@@ -33,7 +33,7 @@ class Catalog:
     config_path : like `pathlib.Path`
         Path to the config directory inside the GRAMM directory (see Notes).
     read_only : bool, optional
-        Flag if the catalog should only be read.
+        Flag if the catalog should be read-only.
 
     Attributes
     ----------
@@ -47,17 +47,6 @@ class Catalog:
         List of the lines of the file "meteopgt.all".
     simulations : list of Simulations
         List with all GRAL simulations associated with this catalog (see Notes).
-
-    Methods
-    -------
-    get_info()
-        Get information about the current status.
-    init_simulations(n_limit=None)
-        Initialize simulations for a run.
-    run_simulations(n_limit=None)
-        Start a run of initialized simulations.
-    wait_for_simulations()
-        Wait until the simulations are finished.
 
     Notes
     -----
@@ -280,22 +269,32 @@ class Catalog:
         min = int(current_time // 60)
         print(
             "Queue size: {} Currently running: {} running since {} days {}:{}\r".format(
-                len_queue,
-                len_parallel_simulations,
-                days,
-                hours,
-                min,
+                len_queue, len_parallel_simulations, days, hours, min,
             ),
             end="",
         )
 
     def run_simulations(self, n_processes=5, n_limit=None):
+        """
+        Start the simulations with Status "init".
+
+        The number of simulations can be limited with `n_limit` and the number of
+        parallel simulations is given by `n_processes`.
+
+        Parameters
+        ----------
+        n_processes : int, optional
+            Number of parallel GRAL processes, by default 5
+        n_limit : _type_, optional
+            Limit for the queue for the simulations, by default None
+        
+        Raises
+        ------
+        Exception
+            Not available in read-only mode.
+        """
         if self.read_only:
-            print(
-                "Catalog is set to read-only. If you wish to run simulations, please"
-                + "initialize with 'read_only = False'."
-            )
-            return -1
+            raise Exception("Read only")
 
         queue = self.get_simulations(Status.init)
 
@@ -324,6 +323,9 @@ class Catalog:
             self.print_runtime_info(start, len(queue), len(parallel_simulations))
 
     def wait_for_simulations(self):
+        """
+        Wait until all running simulations are finished.
+        """
         # Count running simulations
         parallel_simulations = []
         for simulation in self.simulations:
@@ -343,29 +345,37 @@ class Catalog:
                 time.sleep(2)
                 self.print_runtime_info(start, len_queue, len(parallel_simulations))
 
-    def collect_simulations(self):
-        # print("I am collecting the results of the simulations!")
-        pass
-
     def save_simulations_as_npz(self, n_processes=1):
-        if not self.read_only:
-            # Save all finished simulations
-            for simulation in self.get_simulations(Status.finished):
-                target_path = simulation.sim_sub_path / "con.npz"
-                if target_path.exists() == False:
-                    con_path_list = simulation.get_paths(suffix=".con")
-                    with Pool(n_processes) as pool:
-                        con_list = pool.map(utils.con_file_as_sparse_matrix, con_path_list)
-                    # Create the data structure
-                    file_dict = {}
-                    for con, path in zip(con_list, con_path_list):
-                        key = path.stem.split("-")[1]
-                        file_dict[key] = con
-                    np.savez(target_path, **file_dict)
-        else:
+        """
+        Save concentration fields as sparse matrices in the numpy format to ensure faster access.
+
+        Parameters
+        ----------
+        n_processes : int, optional
+            Number of parallel processes, by default 1
+
+        Raises
+        ------
+        Exception
+            Not available in read-only mode.
+        """
+        if self.read_only:
             raise Exception("Read only")
+
+        # Save all finished simulations
+        for simulation in self.get_simulations(Status.finished):
+            target_path = simulation.sim_sub_path / "con.npz"
+            if target_path.exists() == False:
+                con_path_list = simulation.get_paths(suffix=".con")
+                with Pool(n_processes) as pool:
+                    con_list = pool.map(utils.con_file_as_sparse_matrix, con_path_list)
+                # Create the data structure
+                file_dict = {}
+                for con, path in zip(con_list, con_path_list):
+                    key = path.stem.split("-")[1]
+                    file_dict[key] = con
+                np.savez(target_path, **file_dict)
 
     def __del__(self):
         if not self.read_only:
             self.wait_for_simulations()
-            self.collect_simulations()

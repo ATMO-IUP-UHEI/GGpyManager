@@ -1,0 +1,28 @@
+digraph "Structure"{
+  rankdir = LR; // Left to right
+  compound = true; // Stop edges on subgraph
+  node [shape = rectangle];
+
+  subgraph cluster_catalog{
+    label = "Reader(Catalog)";
+    simulations;
+  }
+
+  files[
+      shape = record;
+      label = "simulation directories|<port-1>1|<port-2>2|3|...";
+  ];
+
+  simulations[
+    shape = record;
+    label = "
+      <sim-port-1>Simulation 1|
+      <sim-port-2>Simulation 2|
+      <sim-port-3>Simulation 3|...
+    ";
+  ]
+
+    files:<port-1> -> simulations:<sim-port-1>;
+    files:<port-2> -> simulations:<sim-port-2>;
+    files:<port-3> -> simulations:<sim-port-3>;
+  }

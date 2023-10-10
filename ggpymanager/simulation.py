@@ -37,6 +37,9 @@ class State:
     def __repr__(self) -> str:
         return self.name
 
+    def __hash__(self) -> int:
+        return self.value
+
 
 @dataclass
 class Status:

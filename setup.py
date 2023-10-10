@@ -10,6 +10,7 @@ setup(
     install_requires=[
         "scipy",
         "numpy",
+        "xarray",
         "pytest",
 
     ],  # external packages as dependencies

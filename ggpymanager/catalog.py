@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from multiprocessing import Pool
 import numpy as np
+from tqdm import tqdm
 
 from .simulation import Simulation, Status
 from . import utils
@@ -176,7 +177,7 @@ class Catalog:
         if n_limit is not None:
             gral_list = gral_list[:n_limit]
 
-        for meteo_number in gral_list:
+        for meteo_number in tqdm(gral_list):
             # Create a subpath from the `meteo_number`
             sim_sub_path = self.sim_path / "{:05}_sim".format(meteo_number)
             link_target_path_list, link_name_list = self.create_link_list(meteo_number)

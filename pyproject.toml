@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "ggpymanager"
+version = "1.0.0"
+description = "Python module to manage Gramm Gral runs and storage."
+authors = ["Robert Maiwald"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.13"
+numpy = "^1.26.1"
+scipy = "^1.11.3"
+xarray = "^2023.10.1"
+pytest = "^7.4.3"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

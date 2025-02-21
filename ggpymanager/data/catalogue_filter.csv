@@ -1,0 +1,14 @@
+# Catalogue filter from Berchet, Antoine, Katrin Zink, Clive Muller, Dietmar Oettl, 
+# Juerg Brunner, Lukas Emmenegger, and Dominik Brunner. 2017. ‘A Cost-Effective Method 
+# for Simulating City-Wide Air Flow and Pollutant Dispersion at Building Resolving 
+# Scale’. Atmospheric Environment 158:181–96. 
+# https://doi.org/10.1016/j.atmosenv.2017.03.030.
+wind speed (m/s),global radiation (W/m2),,,,
+,925,675, 175,20,0
+0,A,A,B,D,F/G
+0.5,A,A,B,D,F/G
+1.0,A,A,B,D,F/G
+2.0,A,B,C,D,E/F
+3.0,B,B,C,D,D
+5.0,C,C,D,D,D
+6.0,C,D,D,D,D

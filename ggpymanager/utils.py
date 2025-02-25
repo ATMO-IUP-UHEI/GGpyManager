@@ -19,12 +19,13 @@ from scipy import sparse
 
 def check_docstring_dims(func):
     """
-    Decorator to check if the dimensions of xr.DataArray arguments match the docstring specification.
+    Decorator to check if the dimensions of xr.DataArray arguments and return values
+    match the docstring specification.
     """
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # Retrieve function signature
+        # Retrieve function signature and bound arguments
         sig = inspect.signature(func)
         bound_args = sig.bind(*args, **kwargs)
         bound_args.apply_defaults()
@@ -34,14 +35,14 @@ def check_docstring_dims(func):
         if not docstring:
             return func(*args, **kwargs)  # Skip check if no docstring
 
-        # Extract expected dimensions from docstring
-        pattern = re.compile(r"(\w+)\s*:\s*xr\.DataArray\s*\((.*?)\)")
+        # Extract expected input dimensions
+        param_pattern = re.compile(r"(\w+)\s*:\s*xr\.DataArray\s*\((.*?)\)")
         expected_dims = {
             match[0]: tuple(match[1].split(", "))
-            for match in pattern.findall(docstring)
+            for match in param_pattern.findall(docstring)
         }
 
-        # Validate dimensions for each xr.DataArray argument
+        # Validate input arguments
         for arg_name, expected_dim in expected_dims.items():
             if arg_name in bound_args.arguments:
                 arg_value = bound_args.arguments[arg_name]
@@ -51,7 +52,27 @@ def check_docstring_dims(func):
                         actual_dim == expected_dim
                     ), f"Argument '{arg_name}' expected dimensions {expected_dim}, but got {actual_dim}."
 
-        return func(*args, **kwargs)
+        # Execute the function
+        result = func(*args, **kwargs)
+
+        # Extract expected output dimensions
+        return_pattern = re.compile(
+            r"Returns\s*\n[-]+\n\s*(\w+)\s*:\s*xr\.DataArray\s*\((.*?)\)"
+        )
+        match = return_pattern.search(docstring)
+        if match:
+            return_var, expected_return_dim = match.groups()
+            expected_return_dim = tuple(expected_return_dim.split(", "))
+
+            # Validate return value
+            if isinstance(result, xr.DataArray):
+                actual_return_dim = result.dims
+                assert actual_return_dim == expected_return_dim, (
+                    f"Function '{func.__name__}' expected return dimensions {expected_return_dim}, "
+                    f"but got {actual_return_dim}."
+                )
+
+        return result  # Return function output as usual
 
     return wrapper
 
@@ -417,3 +438,276 @@ def read_gral_concentration(path):
     #         con_matrix = conc_file[key].all().toarray()
     #         con_dict[key] = con_matrix
     # return con_dict
+
+
+@check_docstring_dims
+def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
+    """
+    Get allowed stability classes for each time step based on radiation and wind speed.
+
+    Parameters
+    ----------
+    radiation : xr.DataArray (time)
+        Radiation data with time dimension.
+    wind_speed : xr.DataArray (sim_id)
+        Wind speed data with sim_id dimension.
+    stab_class_catalog : xr.DataArray (sim_id)
+        Stability class data with sim_id dimension.
+
+    Returns
+    -------
+    stability_class_mask : xr.DataArray (time, sim_id)
+        Binary array with one-hot encoding for the allowed stability classes at each
+        time step.
+    """
+
+    radiation_index = xr.zeros_like(radiation, dtype=int)
+    wind_speed_index = xr.zeros_like(wind_speed, dtype=int)
+    catalog_filter = load_catalog_filter()
+    min_rads = catalog_filter.columns.get_level_values(1).astype(float)[::-1]
+
+    # Select bin for radiation for each time step
+    for i, min_rad in enumerate(min_rads):
+        above_rad_threshold = radiation >= min_rad
+        radiation_index[above_rad_threshold] = i
+
+    # Select bin for wind speed for each time step
+    for i, min_wind_speed in enumerate(catalog_filter.index):
+        above_wind_threshold = wind_speed >= float(min_wind_speed)
+        wind_speed_index[above_wind_threshold] = i
+
+    # Get stability class(es) for each time step (dims: sim_id, time)
+    allowed_stab_classes = catalog_filter.values[:, radiation_index.values][
+        wind_speed_index.values
+    ].astype(str)
+    allowed_stab_classes = xr.DataArray(
+        allowed_stab_classes,
+        dims=["sim_id", "time"],
+        coords={
+            "sim_id": wind_speed.sim_id,
+            "time": radiation.time,
+        },
+    )
+
+    # Convert stab_class_catalog to string
+    stab_class_as_str = stab_class_catalog.astype(str)
+    stab_index = ["A", "B", "C", "D", "E", "F", "G"]
+    for stab, index in zip(stab_index, range(1, 8)):
+        is_index = stab_class_catalog == index
+        stab_class_as_str[is_index] = stab
+
+    # Create empty mask
+    stability_class_mask = xr.DataArray(
+        np.zeros((len(radiation), len(wind_speed)), dtype=bool),
+        dims=["time", "sim_id"],
+        coords={
+            "time": radiation.time,
+            "sim_id": wind_speed.sim_id,
+        },
+    )
+
+    # Check if stability class is allowed
+    for i, stab in enumerate(stab_index):
+        is_stab = stab_class_as_str == stab
+        is_allowed_stability = np.strings.find(allowed_stab_classes, stab) >= 0
+        stability_class_mask[dict(sim_id=is_stab)] = is_allowed_stability[
+            dict(sim_id=is_stab)
+        ]
+    return stability_class_mask
+
+
+def load_catalog_filter():
+    file_path = resources.files("ggpymanager.data").joinpath("catalogue_filter.csv")
+    return pd.read_csv(
+        file_path,
+        comment="#",
+        header=[0, 1],
+        index_col=0,
+    )
+
+
+@check_docstring_dims
+def rmse_loss(u, v, u_model, v_model):
+    """
+    Input for N hours, S stations, and M catalog entries.
+
+    Parameters
+    ----------
+    u : xr.DataArray (time, station)
+        Hourly wind speed in x-direction from measurements.
+    v : xr.DataArray (time, station)
+        Hourly wind speed in y-direction from measurements.
+    u_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in x-direction from catalog.
+    v_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in y-direction from catalog.
+
+    Returns
+    -------
+    rmse : xr.DataArray (time, sim_id)
+        Root mean squared error for each hour and catalog entry.
+    """
+    return np.sqrt(((u - u_model) ** 2 + (v - v_model) ** 2).mean(dim="station"))
+
+
+@check_docstring_dims
+def regularized_loss(u, v, u_model, v_model):
+    """
+    Input for N hours, S stations, and M catalog entries.
+
+    Loss function based on: Berchet, Antoine, Katrin Zink, Clive Muller, Dietmar Oettl,
+    Juerg Brunner, Lukas Emmenegger, and Dominik Brunner. 2017. ‘A Cost-Effective Method
+    for Simulating City-Wide Air Flow and Pollutant Dispersion at Building Resolving
+    Scale’. Atmospheric Environment 158:181–96.
+    https://doi.org/10.1016/j.atmosenv.2017.03.030.
+
+
+    Parameters
+    ----------
+    u : xr.DataArray (time, station)
+        Hourly wind speed in x-direction from measurements.
+    v : xr.DataArray (time, station)
+        Hourly wind speed in y-direction from measurements.
+    u_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in x-direction from catalog.
+    v_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in y-direction from catalog.
+
+    Returns
+    -------
+    regularized_loss : xr.DataArray (time, sim_id)
+        Regularized loss for each hour and catalog entry.
+    """
+    # Create station weights
+    wind_speed = np.sqrt(u**2 + v**2)
+    wind_speed_min = 2  # m/s
+    std_wind_speed = wind_speed.std(dim="time")
+    station_weight = std_wind_speed * wind_speed.clip(wind_speed_min)
+
+    # Correlation between hours
+    sigma = 1.0  # correlation length in hours
+    compute_range = 3  # hours
+
+    wind_speed_difference = np.sqrt((u - u_model) ** 2 + (v - v_model) ** 2)
+    loss_per_hour = (wind_speed_difference / station_weight).mean(dim="station")
+    time_difference = np.arange(-compute_range, compute_range + 1)
+    window = xr.DataArray(
+        np.exp(-(time_difference**2) / (sigma**2)),
+        dims="window",
+        coords={"window": time_difference},
+    )
+    loss = loss_per_hour.rolling(
+        time=2 * compute_range + 1,
+        min_periods=1,
+        center=True,
+    ).construct("window")
+    loss = loss * window
+    loss = loss.sum(dim="window") / window.sum()
+    return loss
+
+
+@check_docstring_dims
+def compound_loss(u, v, u_model, v_model, lambda_=0.7):
+    """
+    Input for N hours, S stations, and M catalog entries.
+
+    Loss function based on:
+
+    Parameters
+    ----------
+    u : xr.DataArray (time, station)
+        Hourly wind speed in x-direction from measurements.
+    v : xr.DataArray (time, station)
+        Hourly wind speed in y-direction from measurements.
+    u_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in x-direction from catalog.
+    v_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in y-direction from catalog.
+    lambda_ : float, optional
+        Regularization parameter. Default is 0.7.
+
+    Returns
+    -------
+    compound_loss : xr.DataArray (time, sim_id)
+        Compound loss for each hour and catalog entry.
+    """
+    direction = direction_from_vector(u, v)
+    wind_speed = wind_speed_from_vector(u, v)
+    direction_model = direction_from_vector(u_model, v_model)
+    wind_speed_model = wind_speed_from_vector(u_model, v_model)
+
+    # Difference in direction
+    direction_difference = np.abs(direction - direction_model)
+    direction_difference = np.minimum(direction_difference, 360 - direction_difference)
+    direction_difference = direction_difference / 180
+
+    # Difference in wind speed
+    wind_speed_difference = np.abs(wind_speed - wind_speed_model)
+    weight = 1 / wind_speed.clip(wind_speed.median()).mean(dim="time")
+    wind_speed_difference = wind_speed_difference * weight
+    wind_speed_difference = wind_speed_difference / wind_speed_difference.max()
+
+    compound_loss = (
+        lambda_ * direction_difference + (1 - lambda_) * wind_speed_difference
+    ).sum(dim="station")
+    return compound_loss
+
+
+@check_docstring_dims
+def compute_matching_loss(
+    u,
+    v,
+    u_model,
+    v_model,
+    matching="rmse",
+    filter=False,
+    synoptic_wind_speed=None,
+    global_radiation=None,
+    stab_class_catalog=None,
+):
+    """
+    Input for N hours, S stations, and M catalog entries.
+
+    Parameters
+    ----------
+    u : xr.DataArray (time, station)
+        Hourly wind speed in x-direction from measurements.
+    v : xr.DataArray (time, station)
+        Hourly wind speed in y-direction from measurements.
+    u_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in x-direction from catalog.
+    v_model : xr.DataArray (sim_id, station)
+        Hourly wind speed in y-direction from catalog.
+    matching : str, optional
+        Matching loss function. Default is 'rmse'. Options are 'rmse', 'regularized',
+        and 'compound'.
+    filter : bool, optional
+        Whether to filter the matching results. Default is False.
+    synoptic_wind_speed : xr.DataArray, optional
+        Synoptic wind speed data with sim_id dimension.
+    global_radiation : xr.DataArray, optional
+        Global radiation data with time dimension.
+    stab_class_catalog : xr.DataArray, optional
+        Stability class data with sim_id dimension.
+
+    Returns
+    -------
+    matching_loss : xr.DataArray (time, sim_id)
+        Matching loss for each hour and catalog entry.
+    """
+    logging.info(f"Computing matching with {matching}...")
+    loss_funcs = {
+        "rmse": rmse_loss,
+        "regularized": regularized_loss,
+        "compound": compound_loss,
+    }
+    # Compute matching loss
+    matching_loss = loss_funcs[matching](u, v, u_model, v_model)
+    # Filter results
+    if filter:
+        stab_mask = get_allowed_stability_class(
+            global_radiation, synoptic_wind_speed, stab_class_catalog
+        )
+        matching_loss = matching_loss.where(stab_mask)
+
+    return matching_loss

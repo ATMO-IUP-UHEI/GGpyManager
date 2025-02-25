@@ -17,6 +17,25 @@ import xarray as xr
 from scipy import sparse
 
 
+def set_logger(level="INFO"):
+    """
+    Set up the logging configuration.
+
+    Parameters
+    ----------
+    level : str, optional
+        Logging level. Default is 'INFO'.
+    """
+    logging.basicConfig(
+        level=getattr(
+            logging, level.upper(), logging.INFO
+        ),  # Use the function argument
+        format="%(levelname)s: %(message)s",
+        force=True,  # Force reset of logging settings
+    )
+    logging.info("Logger set up.")
+
+
 def check_docstring_dims(func):
     """
     Decorator to check if the dimensions of xr.DataArray arguments and return values
@@ -470,11 +489,21 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
     for i, min_rad in enumerate(min_rads):
         above_rad_threshold = radiation >= min_rad
         radiation_index[above_rad_threshold] = i
+        logging.info(
+            "Radiation larger {:>5} W/m²: {:>4} entries".format(
+                min_rad, above_rad_threshold.sum().values
+            )
+        )
 
     # Select bin for wind speed for each time step
     for i, min_wind_speed in enumerate(catalog_filter.index):
         above_wind_threshold = wind_speed >= float(min_wind_speed)
         wind_speed_index[above_wind_threshold] = i
+        logging.info(
+            "Wind speed larger {} m/s: {:>4} entries".format(
+                min_wind_speed, above_wind_threshold.sum().values
+            )
+        )
 
     # Get stability class(es) for each time step (dims: sim_id, time)
     allowed_stab_classes = catalog_filter.values[:, radiation_index.values][
@@ -709,6 +738,9 @@ def compute_matching_loss(
             global_radiation, synoptic_wind_speed, stab_class_catalog
         )
         matching_loss = matching_loss.where(stab_mask)
+        logging.info(
+            "Filtered {} % of the results.".format(stab_mask.mean().values * 100)
+        )
 
     # Add metadata
     matching_loss.name = f"{matching}_loss"

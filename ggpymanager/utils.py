@@ -2,11 +2,123 @@
 Utility functions partly adapted from Ivo Suter.
 """
 
+import inspect
+import logging
+import re
 import struct
-import numpy as np
-from dataclasses import dataclass
-from scipy import sparse
 import zipfile
+from dataclasses import dataclass
+from functools import wraps
+from importlib import resources
+
+import numpy as np
+import pandas as pd
+import xarray as xr
+from scipy import sparse
+
+
+def check_docstring_dims(func):
+    """
+    Decorator to check if the dimensions of xr.DataArray arguments match the docstring specification.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        # Retrieve function signature
+        sig = inspect.signature(func)
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        # Retrieve docstring
+        docstring = inspect.getdoc(func)
+        if not docstring:
+            return func(*args, **kwargs)  # Skip check if no docstring
+
+        # Extract expected dimensions from docstring
+        pattern = re.compile(r"(\w+)\s*:\s*xr\.DataArray\s*\((.*?)\)")
+        expected_dims = {
+            match[0]: tuple(match[1].split(", "))
+            for match in pattern.findall(docstring)
+        }
+
+        # Validate dimensions for each xr.DataArray argument
+        for arg_name, expected_dim in expected_dims.items():
+            if arg_name in bound_args.arguments:
+                arg_value = bound_args.arguments[arg_name]
+                if isinstance(arg_value, xr.DataArray):
+                    actual_dim = arg_value.dims
+                    assert (
+                        actual_dim == expected_dim
+                    ), f"Argument '{arg_name}' expected dimensions {expected_dim}, but got {actual_dim}."
+
+        return func(*args, **kwargs)
+
+    return wrapper
+
+
+def direction_from_vector(ux, vy):
+    """
+    Calculate the wind direction from the vector components.
+
+    Parameters
+    ----------
+    ux : array_like
+        Eastward component of the wind vector.
+    vy : array_like
+        Northward component of the wind vector.
+
+    Returns
+    -------
+    direction : array_like
+        Wind direction in degrees.
+    """
+    return (90 - np.rad2deg(np.arctan2(-vy, -ux))) % 360
+
+
+def wind_speed_from_vector(ux, vy):
+    """
+    Calculate the wind speed from the vector components.
+
+    Parameters
+    ----------
+    ux : array_like
+        Eastward component of the wind vector.
+    vy : array_like
+        Northward component of the wind vector.
+
+    Returns
+    -------
+    wind_speed : array_like
+        Wind speed in m/s.
+    """
+    return np.sqrt(ux**2 + vy**2)
+
+
+def vector_from_direction_and_speed(direction, speed):
+    """
+    Calculate the vector components from the wind direction and speed.
+
+    Parameters
+    ----------
+    direction : array_like
+        Wind direction in degrees.
+    speed : array_like
+        Wind speed in m/s.
+
+    Returns
+    -------
+    ux : array_like
+        Eastward component of the wind vector.
+    vy : array_like
+        Northward component of the wind vector.
+    """
+    # Convert the direction into radians
+    rad = np.deg2rad(direction)
+    # Calculate the vector components
+    ux = -speed * np.sin(rad)  # Eastward component
+    vy = -speed * np.cos(rad)  # Northward component
+    return ux, vy
+
 
 @dataclass
 class GRAMM:
@@ -84,6 +196,7 @@ class GRAL:
     xcmesh, ycmesh = np.meshgrid(
         xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
     )
+
 
 def read_landuse(path, GRAMM=GRAMM):
     f = open(path, "r")
@@ -285,19 +398,21 @@ def read_con_file(path, GRAL=GRAL):
 
     return con
 
+
 def con_file_as_sparse_matrix(path, GRAL=GRAL):
     con = read_con_file(path, GRAL)
     return sparse.csr_matrix(con)
 
+
 def read_gral_concentration(path):
     con_dict = {}
-    conc_file = np.load(path, allow_pickle=True)        
+    conc_file = np.load(path, allow_pickle=True)
     for key in conc_file:
         con_matrix = conc_file[key].all().toarray()
         con_dict[key] = con_matrix
     return con_dict
     # con_dict = {}
-    # with np.load(path, allow_pickle=True, mmap_mode="r") as conc_file:            
+    # with np.load(path, allow_pickle=True, mmap_mode="r") as conc_file:
     #     for key in conc_file:
     #         con_matrix = conc_file[key].all().toarray()
     #         con_dict[key] = con_matrix

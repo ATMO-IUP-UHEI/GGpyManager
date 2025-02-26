@@ -1,0 +1,4 @@
+sphinx
+jupyter
+matplotlib
+numpy

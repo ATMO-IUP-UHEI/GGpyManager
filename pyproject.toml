@@ -1,20 +1,15 @@
-[tool.poetry]
-name = "ggpymanager"
-version = "1.0.0"
-description = "Python module to manage Gramm Gral runs and storage."
-authors = ["Robert Maiwald"]
-license = "MIT"
-readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.9,<3.13"
-numpy = "^1.26.1"
-scipy = "^1.11.3"
-xarray = "^2023.10.1"
-pytest = "^7.4.3"
-tqdm = "^4.66.1"
-
-
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+authors = [
+  {name = "Robert Maiwald", email = "robert.maiwald@uni-heidelberg.de"},
+]
+description = "Python module to manage Gramm Gral runs and storage."
+license = {text = "MIT"}
+name = "ggpymanager"
+readme = "README.md"
+version = "1.0.0"
+
+# dependencies = [] # Dependencies should be installed with conda

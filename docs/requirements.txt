@@ -3,3 +3,5 @@ jupyter
 matplotlib
 numpy
 nbsphinx
+sphinx_rtd_theme
+graphviz

@@ -1,4 +1,4 @@
-sphinx
+sphinx==7.4
 nbsphinx
 sphinx_rtd_theme
 graphviz

@@ -739,13 +739,13 @@ def compute_matching_loss(
         )
         matching_loss = matching_loss.where(stab_mask)
         logging.info(
-            "Filtered {} % of the results.".format(stab_mask.mean().values * 100)
+            "Filtered {:.1f} % of the results.".format(stab_mask.mean().values * 100)
         )
 
     # Add metadata
     matching_loss.name = f"{matching}_loss"
     matching_loss.attrs["matching"] = matching
-    matching_loss.attrs["filter"] = filter
-    matching_loss.attrs["long_name"] = f"{matching.capitalize()} loss"
+    matching_loss.attrs["filter"] = str(filter)
+    matching_loss.attrs["long_name"] = f"{matching} loss"
     matching_loss.attrs["units"] = ""
     return matching_loss

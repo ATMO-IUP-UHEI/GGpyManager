@@ -2,3 +2,4 @@ sphinx
 jupyter
 matplotlib
 numpy
+nbsphinx

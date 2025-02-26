@@ -1,0 +1,10 @@
+sphinx==7.4
+nbsphinx
+sphinx_rtd_theme
+graphviz
+jupyter
+matplotlib
+numpy
+xarray
+tqdm
+scipy

@@ -10,6 +10,7 @@ import zipfile
 from dataclasses import dataclass
 from functools import wraps
 from importlib import resources
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -236,6 +237,39 @@ class GRAL:
     xcmesh, ycmesh = np.meshgrid(
         xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
     )
+
+
+def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> pd.DataFrame:
+    with (gral_geb_path).open("r") as f:
+        lines = f.readlines()
+    lines = [line.split("!")[0].strip() for line in lines]
+    config = {
+        "dx": float(lines[0]),
+        "dy": float(lines[1]),
+        "dz0": float(lines[2].split(",")[0]),
+        "stretching_factor": float(lines[2].split(",")[1]),
+        "nx": int(lines[3]),
+        "ny": int(lines[4]),
+        "n_horizontal_slices_concentration": int(lines[5]),
+        "source_groups": [int(number) for number in lines[6].split(",")],
+        "west_border": float(lines[7]),
+        "east_border": float(lines[8]),
+        "south_border": float(lines[9]),
+        "north_border": float(lines[10]),
+    }
+    with (in_dat_path).open("r") as f:
+        lines = f.readlines()
+    lines = [line.split("!")[0].strip() for line in lines]
+    config |= {
+        "particle_number": int(lines[0]),
+        "dispersion_time": float(lines[1]),
+        "steady_state": bool(int(lines[2])),
+        "horizontal_slices_concentration": [
+            float(number) for number in lines[9].split(",")
+        ],
+        "vertical_grid_spacing_concentration": float(lines[10]),
+    }
+    return config
 
 
 def read_landuse(path, GRAMM=GRAMM):

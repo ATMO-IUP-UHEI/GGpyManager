@@ -747,11 +747,11 @@ def compute_matching_loss(
     filter : bool, optional
         Whether to filter the matching results. Default is False.
     synoptic_wind_speed : xr.DataArray, optional
-        Synoptic wind speed data with sim_id dimension.
+        Synoptic wind speed data with sim_id dimension required for filtering.
     global_radiation : xr.DataArray, optional
-        Global radiation data with time dimension.
+        Global radiation data with time dimension required for filtering.
     stab_class_catalog : xr.DataArray, optional
-        Stability class data with sim_id dimension.
+        Stability class data with sim_id dimension required for filtering.
 
     Returns
     -------

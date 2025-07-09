@@ -70,7 +70,8 @@ def check_docstring_dims(func):
                     actual_dim = arg_value.dims
                     assert (
                         actual_dim == expected_dim
-                    ), f"Argument '{arg_name}' expected dimensions {expected_dim}, but got {actual_dim}."
+                    ), f"Argument '{arg_name}' expected dimensions {expected_dim}, "
+                    f"but got {actual_dim}."
 
         # Execute the function
         result = func(*args, **kwargs)
@@ -88,7 +89,8 @@ def check_docstring_dims(func):
             if isinstance(result, xr.DataArray):
                 actual_return_dim = result.dims
                 assert actual_return_dim == expected_return_dim, (
-                    f"Function '{func.__name__}' expected return dimensions {expected_return_dim}, "
+                    f"Function '{func.__name__}' "
+                    f"expected return dimensions {expected_return_dim}, "
                     f"but got {actual_return_dim}."
                 )
 
@@ -239,7 +241,7 @@ class GRAL:
     )
 
 
-def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> pd.DataFrame:
+def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
     with (gral_geb_path).open("r") as f:
         lines = f.readlines()
     lines = [line.split("!")[0].strip() for line in lines]
@@ -277,9 +279,9 @@ def read_landuse(path, GRAMM=GRAMM):
     data = f.readlines()
     f.close()
 
-    thermalcondu = data[
-        0
-    ].split()  # it is actually heatcondu/thermalcondu/900  ->  thermalcondu=1/(data[0]*900/data[1])
+    thermalcondu = data[0].split()
+    # it is actually heatcondu/thermalcondu/900
+    #   ->  thermalcondu=1/(data[0]*900/data[1])
     thermalcondu = [float(i) for i in thermalcondu]
 
     heatcondu = data[1].split()
@@ -327,7 +329,7 @@ def read_topography(path):
     f.close()
     tmp = data[1].split()
     topo_ind = 0
-    topo = np.zeros((GRAMM.nx, GRAMM.ny), np.float)
+    topo = np.zeros((GRAMM.nx, GRAMM.ny), np.float64)
     for j in range(GRAMM.ny):
         for i in range(GRAMM.nx):
             topo[i, j] = float(tmp[topo_ind])
@@ -335,7 +337,7 @@ def read_topography(path):
 
     # Z Grid
     tmp = data[8].split()
-    zgrid = np.zeros([GRAMM.nx, GRAMM.ny, GRAMM.nz], np.float)
+    zgrid = np.zeros([GRAMM.nx, GRAMM.ny, GRAMM.nz], np.float64)
     ind = 0
     for k in range(GRAMM.nz):
         for j in range(GRAMM.ny):
@@ -356,13 +358,13 @@ def read_gramm_windfield(path):
     dt = np.dtype(np.short)
 
     info = np.frombuffer(data[: nheader - 4], dtype=np.int32)
-    grid_size = np.frombuffer(data[nheader - 4 : nheader], dtype=np.float32)
+    # grid_size = np.frombuffer(data[nheader - 4 : nheader], dtype=np.float32)
     datarr = np.frombuffer(data[nheader:], dtype=dt)
     datarr = np.reshape(datarr, [nx, ny, nz, 3])
     wind_u = datarr[:, :, :, 0] * 0.01
     wind_v = datarr[:, :, :, 1] * 0.01
-    wind_w = datarr[:, :, :, 2] * 0.01
-    umag = np.hypot(wind_u[:, :, :], wind_v[:, :, :])
+    # wind_w = datarr[:, :, :, 2] * 0.01
+    # umag = np.hypot(wind_u[:, :, :], wind_v[:, :, :])
 
     return info, wind_u, wind_v
 
@@ -395,7 +397,8 @@ def read_gral_geometries(path):
     # print(dzk, stretch)
     blub = byte_list[nheader:]
     # float and int32 -> 4byte each
-    # somehow the array is padded with 0? Therefore it is 1 cell bigger in x- and y-dimension
+    # somehow the array is padded with 0? Therefore it is 1 cell bigger in x- and
+    # y-dimension
     datarr = np.zeros([nx + 1, ny + 1, 3])
     c = 0
     for i in range(nx + 1):
@@ -419,7 +422,7 @@ def read_gral_windfield(path):
         gff = zipfile.ZipFile(path, "r")
 
         for filename in gff.namelist():
-            byte_list = gff.read(filename)
+            byte_list: bytes = gff.read(filename)
             gff.close()
 
     else:
@@ -428,7 +431,7 @@ def read_gral_windfield(path):
             binfile.close()
 
     nheader = 32
-    header = byte_list[:nheader]
+    header = byte_list[:nheader]  # type: ignore
     nz, ny, nx, direction, speed, akla, dxy, h = struct.unpack("iiiffifi", header)
     # convert direction to degree (strange, but seems to work)
     direction = 270.0 - np.rad2deg(direction)
@@ -437,8 +440,10 @@ def read_gral_windfield(path):
 
     count = (nx + 1) * (ny + 1) * (nz + 1) * 3
 
-    # data = np.fromstring(byte_list[nheader:len(byte_list)], dtype=dt, count=count, sep='')
-    data = np.frombuffer(byte_list[nheader:], dtype=dt, count=count)
+    # data = np.fromstring(
+    #   byte_list[nheader:len(byte_list)], dtype=dt, count=count, sep=''
+    # )
+    data = np.frombuffer(byte_list[nheader:], dtype=dt, count=count)  # type: ignore
 
     data = np.reshape(data, [nx + 1, ny + 1, nz + 1, 3])
     # Cut out zeros at the border
@@ -457,7 +462,7 @@ def read_con_file(path, GRAL=GRAL):
     if len(data) <= 4:
         return -1
 
-    header = struct.unpack("i", data[:4])
+    # header = struct.unpack("i", data[:4])
     data_list = list(struct.iter_unpack("iif", data[4:]))
     datarr = np.array(data_list)
     con = np.zeros((GRAL.nx, GRAL.ny))
@@ -575,12 +580,14 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
         is_allowed_stability = np.strings.find(allowed_stab_classes, stab) >= 0
         stability_class_mask[dict(sim_id=is_stab)] = is_allowed_stability[
             dict(sim_id=is_stab)
-        ]
+        ]  # type: ignore
     return stability_class_mask
 
 
 def load_catalog_filter():
-    file_path = resources.files("ggpymanager.data").joinpath("catalogue_filter.csv")
+    file_path = str(
+        resources.files("ggpymanager.data").joinpath("catalogue_filter.csv")
+    )
     return pd.read_csv(
         file_path,
         comment="#",

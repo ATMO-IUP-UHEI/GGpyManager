@@ -1,7 +1,7 @@
 """
 Module Name: read_gramm_geometry.py
 
-Description: 
+Description:
     Convert to `ggeom.asc` file to an xarray dataset.
 
 
@@ -72,7 +72,7 @@ def read_ggeom_file(filepath: str) -> xr.Dataset:
     vars = {}
     idx = 0
     for var, (size, dtype, _) in variable_sizes_types_dimensions.items():
-        vars[var] = np.array(tokens[idx : idx + size], dtype=dtype)
+        vars[var] = np.array(tokens[idx : (idx + size)], dtype=dtype)
         idx += size
 
     dimensions = {

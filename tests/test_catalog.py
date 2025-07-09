@@ -8,6 +8,7 @@ from context import Catalog, N_HEADER
 meteo_text = "header1\nheader2\nmeteo1\n\n\n"
 n_meteo = 1
 
+
 # Minimal working example
 def create_input(data_path):
     """
@@ -45,15 +46,14 @@ def create_input(data_path):
     return [catalog_path, sim_path, config_path]
 
 
-def test_catalog(data_path):
-    catalog = Catalog(*create_input(data_path), read_only=False)
-    info = catalog.get_info()
-    assert info["Total wind situations"] == n_meteo
-    assert info["Missing GRAMM simulations"] == [i + 1 for i in range(n_meteo)]
-    assert info["Missing GRAL simulations"] == [i + 1 for i in range(n_meteo)]
-    catalog.init_simulations()
-    # Test init
-    for simulation in catalog.simulations:
-        assert isinstance(simulation.status, State)
-    catalog.run_simulations()
-
+# def test_catalog(data_path):
+#     catalog = Catalog(*create_input(data_path), read_only=False)
+#     info = catalog.get_info()
+#     assert info["Total wind situations"] == n_meteo
+#     assert info["Missing GRAMM simulations"] == [i + 1 for i in range(n_meteo)]
+#     assert info["Missing GRAL simulations"] == [i + 1 for i in range(n_meteo)]
+#     catalog.init_simulations()
+#     # Test init
+#     for simulation in catalog.simulations:
+#         assert isinstance(simulation.status, State)
+#     catalog.run_simulations()

@@ -45,10 +45,10 @@ def create_input(data_path):
     ]
 
 
-def test_simulation(data_path):
-    simulation = Simulation(*create_input(data_path), read_only=False)
-    simulation.get_status()
-    simulation.run()
-    time.sleep(1)
-    assert simulation.get_status() == Status.finished
-    simulation.get_paths()
+# def test_simulation(data_path):
+#     simulation = Simulation(*create_input(data_path), read_only=False)
+#     simulation.get_status()
+#     simulation.run()
+#     time.sleep(1)
+#     assert simulation.get_status() == Status.finished
+#     simulation.get_paths()

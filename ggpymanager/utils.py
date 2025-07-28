@@ -7,10 +7,11 @@ import logging
 import re
 import struct
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import wraps
 from importlib import resources
 from pathlib import Path
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -790,3 +791,162 @@ def compute_matching_loss(
     matching_loss.attrs["long_name"] = f"{matching} loss"
     matching_loss.attrs["units"] = ""
     return matching_loss
+
+
+@dataclass
+class LogMetadata:
+    version: Optional[str] = None
+    plattform: Optional[str] = None
+    dotnet_version: Optional[str] = None
+    n_source_groups: Optional[int] = None
+    ggeom_file_read: bool = False
+    gral_topofile_read: bool = False
+    building_file_read: bool = False
+    n_horizontal_slices: Optional[int] = None
+    point_emissions_read: bool = False
+    n_point_emissions: Optional[int] = None
+    total_point_emissions: Optional[float] = None
+    line_emissions_read: bool = False
+    n_line_emissions: Optional[int] = None
+    total_line_emissions: Optional[float] = None
+    area_emissions_read: bool = False
+    n_area_emissions: Optional[int] = None
+    total_area_emissions: Optional[float] = None
+    advection_computated: bool = False
+    numerical_stabilities: List[float] = field(default_factory=list)
+    obukhov_length: Optional[float] = None
+    boundary_layer_height: Optional[float] = None
+    friction_velocity: Optional[float] = None
+    init_wind_speed: Optional[float] = None
+    init_direction: Optional[float] = None
+    init_stability_class: Optional[float] = None
+    gramm_wind_speed: Optional[float] = None
+    gramm_direction: Optional[float] = None
+    gramm_stability_class: Optional[float] = None
+    total_simulation_time: Optional[float] = None
+    dispersion_time: Optional[float] = None
+    flow_field_time: Optional[float] = None
+
+
+def parse_emission_data(l_iter, has_parentheses=False):
+    """Helper function to parse emission data."""
+    n_line = next(l_iter).split(":")[1]
+    if has_parentheses:
+        n_emissions = int(n_line.split("(")[0])
+    else:
+        n_emissions = int(n_line)
+
+    total_line = next(l_iter).split(":")[1]
+    total_emissions = float(total_line.split("(")[0])
+
+    return n_emissions, total_emissions
+
+
+def parse_meteo_data(line):
+    """Helper function to parse meteorological data."""
+    parts = line.split(":")
+    return {
+        "wind_speed": float(parts[2].split()[0]),
+        "direction": float(parts[3].split()[0]),
+        "stability_class": float(parts[4].split()[0]),
+    }
+
+
+def filter_lines(raw_lines):
+    lines = []
+    for line in raw_lines:
+        line = line.strip().lstrip("0: ")
+        line = line.strip("|<>+- ")
+        if line != "":
+            lines.append(line)
+    return lines
+
+
+def read_gral_stdout(path: str) -> LogMetadata:
+    with Path(path).open() as f:
+        raw_lines = f.readlines()
+
+    lines = filter_lines(raw_lines)
+    lm = LogMetadata()
+
+    for i, l in enumerate(lines):
+        l_iter = iter(lines[i + 1 :])
+
+        match True:
+            case _ if "VERSION" in l:
+                lm.version = l
+                lm.plattform = next(l_iter)
+                lm.dotnet_version = next(l_iter)
+
+            case _ if "Source group count:" in l:
+                lm.n_source_groups = int(l.split(":")[1])
+
+            case _ if "Reading GRAMM orography" in l:
+                lm.ggeom_file_read = True
+
+            case _ if "Reading GRAL_topofile" in l:
+                lm.gral_topofile_read = True
+
+            case _ if "Reading building file" in l:
+                lm.building_file_read = True
+
+            case _ if "Total number of horizontal slices for concentration grid:" in l:
+                n = int(l.split(":")[1])
+                lm.n_horizontal_slices = n
+                slice_height = []
+                for j in range(n):
+                    slice_height.append(int(next(l_iter).split(":")[1]))
+
+            case _ if "Reading file point.dat" in l:
+                lm.point_emissions_read = True
+                lm.n_point_emissions, lm.total_point_emissions = parse_emission_data(
+                    l_iter, has_parentheses=False
+                )
+
+            case _ if "Reading file line.dat" in l:
+                lm.line_emissions_read = True
+                lm.n_line_emissions, lm.total_line_emissions = parse_emission_data(
+                    l_iter, has_parentheses=True
+                )
+
+            case _ if "Reading file cadastre.dat" in l:
+                lm.area_emissions_read = True
+                lm.n_area_emissions, lm.total_area_emissions = parse_emission_data(
+                    l_iter, has_parentheses=False
+                )
+
+            case _ if "ADVECTION" in l:
+                lm.advection_computated = True
+                lm.numerical_stabilities = []
+                next_l = next(l_iter)
+                while next_l.startswith("ITERATION"):
+                    lm.numerical_stabilities.append(float(next_l.split(":")[1]))
+                    next_l = next(l_iter)
+
+            case _ if "Obukhov length" in l:
+                lm.obukhov_length = float(l.split(":")[1])
+
+            case _ if "Friction velocity" in l:
+                lm.friction_velocity = float(l.split(":")[1])
+
+            case _ if "Boundary layer height" in l:  # Fixed duplicate "Obukhov length"
+                lm.boundary_layer_height = float(l.split(":")[1])
+
+            case _ if "Init meteo:" in l:
+                meteo_data = parse_meteo_data(l)
+                lm.init_wind_speed = meteo_data["wind_speed"]
+                lm.init_direction = meteo_data["direction"]
+                lm.init_stability_class = meteo_data["stability_class"]
+
+            case _ if "GRAMM meteo:" in l:
+                meteo_data = parse_meteo_data(l)
+                lm.gramm_wind_speed = meteo_data["wind_speed"]
+                lm.gramm_direction = meteo_data["direction"]
+                lm.gramm_stability_class = meteo_data["stability_class"]
+
+            case _ if "Total simulation time" in l:
+                lm.total_simulation_time = float(l.split(":")[1])
+                lm.dispersion_time = float(next(l_iter).split(":")[1])
+                lm.flow_field_time = float(next(l_iter).split(":")[1])
+
+    return lm

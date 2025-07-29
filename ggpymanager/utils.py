@@ -794,7 +794,7 @@ def compute_matching_loss(
 
 
 @dataclass
-class LogMetadata:
+class GRALLogMetadata:
     version: Optional[str] = None
     plattform: Optional[str] = None
     dotnet_version: Optional[str] = None
@@ -862,12 +862,12 @@ def filter_lines(raw_lines):
     return lines
 
 
-def read_gral_stdout(path: str) -> LogMetadata:
+def read_gral_stdout(path: str) -> GRALLogMetadata:
     with Path(path).open() as f:
         raw_lines = f.readlines()
 
     lines = filter_lines(raw_lines)
-    lm = LogMetadata()
+    lm = GRALLogMetadata()
 
     for i, l in enumerate(lines):
         l_iter = iter(lines[i + 1 :])
@@ -949,4 +949,88 @@ def read_gral_stdout(path: str) -> LogMetadata:
                 lm.dispersion_time = float(next(l_iter).split(":")[1])
                 lm.flow_field_time = float(next(l_iter).split(":")[1])
 
+    return lm
+
+
+@dataclass
+class GRAMMLogMetadata:
+    version: Optional[str] = None
+    plattform: Optional[str] = None
+    dotnet_version: Optional[str] = None
+    n_processors: Optional[int] = None
+    ggeom_file_read: bool = False
+    min_elevation: Optional[float] = None
+    max_elevation: Optional[float] = None
+    init_wind_speed: Optional[float] = None
+    init_direction: Optional[float] = None
+    u_component: Optional[float] = None
+    v_component: Optional[float] = None
+    init_stability_class: Optional[float] = None
+    init_obukhov_length: Optional[float] = None
+    roughness_length: Optional[float] = None
+    init_boundary_layer_height: Optional[float] = None
+    friction_velocity: Optional[float] = None
+    simulation_attempt: List[int] = field(default_factory=list)
+    simulation_time: List[float] = field(default_factory=list)
+    simulation_timestep: List[float] = field(default_factory=list)
+    simulation_divergence: List[float] = field(default_factory=list)
+
+
+def read_gramm_stdout(path: str) -> GRAMMLogMetadata:
+    with Path(path).open() as f:
+        raw_lines = f.readlines()
+
+    lines = filter_lines(raw_lines)
+    lm = GRAMMLogMetadata()
+
+    for i, l in enumerate(lines):
+        l_iter = iter(lines[i + 1 :])
+
+        match True:
+            case _ if "VERSION" in l:
+                lm.version = l
+                lm.plattform = next(l_iter)
+                lm.dotnet_version = next(l_iter)
+
+            case _ if "maximum degree of parallelism" in l:
+                lm.n_processors = int(l.split(":")[1].split()[0])
+
+            case _ if "Reading ggeom.asc" in l:
+                lm.ggeom_file_read = True
+                lm.min_elevation = float(l.split(":")[1].split()[0].rstrip("m"))
+                lm.max_elevation = float(l.split(":")[1].split()[1].rstrip("m"))
+
+            case _ if "Wind direction" in l:
+                lm.init_direction = float(l.split(":")[1])
+
+            case _ if "Wind speed" in l:
+                lm.init_wind_speed = float(l.split(":")[1].rstrip("m/s"))
+
+            case _ if "U-component" in l:
+                lm.u_component = float(l.split(":")[1].rstrip("m/s"))
+
+            case _ if "V-component" in l:
+                lm.v_component = float(l.split(":")[1].rstrip("m/s"))
+
+            case _ if "Stability class" in l:
+                lm.init_stability_class = float(l.split(":")[1])
+
+            case _ if "Obukhov length" in l:
+                lm.init_obukhov_length = float(l.split(":")[1].rstrip("m"))
+
+            case _ if "Roughness length" in l:
+                lm.roughness_length = float(l.split(":")[1].rstrip("m"))
+
+            case _ if "Boundary-Layer height" in l:
+                lm.init_boundary_layer_height = float(l.split(":")[1].rstrip("m"))
+
+            case _ if "Friction velocity" in l:
+                lm.friction_velocity = float(l.split(":")[1].rstrip("m/s"))
+
+            case _ if "WEATHER-SIT." in l:
+                next_l = next(l_iter)
+                lm.simulation_attempt.append(int(next_l.split()[0].split("/")[1]))
+                lm.simulation_time.append(float(next_l.split()[1]))
+                lm.simulation_timestep.append(float(next_l.split()[2]))
+                lm.simulation_divergence.append(float(next_l.split()[5]))
     return lm

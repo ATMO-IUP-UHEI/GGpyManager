@@ -1034,3 +1034,31 @@ def read_gramm_stdout(path: str) -> GRAMMLogMetadata:
                 lm.simulation_timestep.append(float(next_l.split()[2]))
                 lm.simulation_divergence.append(float(next_l.split()[5]))
     return lm
+
+
+def read_esri_ascii(path: str | Path) -> tuple[np.ndarray, dict]:
+    """
+    Reads an ESRI ASCII raster file and returns the data as a numpy array and metadata.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the ESRI ASCII file.
+
+    Returns
+    -------
+    data : np.ndarray
+        2D array of raster values.
+    metadata : dict
+        Dictionary containing header information (ncols, nrows, xllcorner, yllcorner, 
+        cellsize, NODATA_value).
+    """
+    with open(path, "r") as f:
+        header = {}
+        for _ in range(6):
+            line = f.readline()
+            key, value = line.strip().split()
+            header[key.lower()] = float(value) if "." in value else int(value)
+        data = np.loadtxt(f)
+        assert data.shape == (header["nrows"], header["ncols"])
+    return data, header

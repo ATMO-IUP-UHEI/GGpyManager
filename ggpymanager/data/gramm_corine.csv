@@ -1,0 +1,64 @@
+# GRAMM 22.09 Documentation Table 1
+Code,description,albedo,emissivity,Soil moisture,roughness length [m],Heat conductivity [W/m/K],Thermal diffusivity [m²/s]
+111,Continuous urban fabric,0.25,0.95,0.03,1.5000,4.0,2.00E-06
+112,Discontinuous urban fabric,0.25,0.95,0.03,0.5000,4.0,1.30E-06
+121,Industrial or commercial units,0.25,0.95,0.03,0.5000,4.0,1.30E-06
+122,Road and rail networks and associated land,0.25,0.95,0.03,0.3000,4.0,1.30E-06
+123,Port areas,0.25,0.95,0.03,1.0000,4.0,1.30E-06
+124,Airports,0.25,0.95,0.03,0.2000,4.0,1.30E-06
+131,Mineral extraction sites,0.25,0.95,0.03,0.2000,2.0,1.30E-06
+132,Dump sites,0.25,0.95,0.03,0.2000,2.0,1.30E-06
+133,Construction sites,0.25,0.95,0.03,0.3000,2.0,1.30E-06
+141,Green urban areas,0.19,0.92,0.10,0.3000,1.0,7.00E-07
+142,Sport and leisure facilities,0.19,0.92,0.10,0.3000,1.0,7.00E-07
+211,Non-irrigated arable land,0.19,0.92,0.10,0.1000,0.5,7.00E-07
+212,Permanently irrigated land,0.19,0.92,0.50,0.1000,1.5,7.00E-07
+213,Rice fields,0.19,0.92,0.50,0.1000,2.0,7.00E-07
+221,Vineyards,0.19,0.92,0.10,0.1500,0.5,7.00E-07
+222,Fruit trees and berry plantations,0.19,0.92,0.10,0.2500,0.5,7.00E-07
+223,Olive groves,0.19,0.92,0.05,0.3000,0.5,7.00E-07
+231,Pastures,0.19,0.92,0.10,0.1000,0.5,7.00E-07
+241,Annual crops associated with permanent crops,0.19,0.92,0.10,0.1000,0.5,7.00E-07
+242,Complex cultivation patterns,0.19,0.92,0.10,0.2000,0.5,7.00E-07
+243,"Land principally occupied by agriculture, with significant areas of natural vegetation",0.19,0.92,0.10,0.2000,0.5,7.00E-07
+244,Agro-forestry areas,0.17,0.95,0.40,1.0000,0.5,8.00E-07
+311,Broad-leaved forest,0.16,0.95,0.40,1.0000,0.5,8.00E-07
+312,Coniferous forest,0.12,0.95,0.40,1.0000,0.5,8.00E-07
+313,Mixed forest,0.14,0.95,0.40,1.0000,0.5,8.00E-07
+321,Natural grasslands,0.15,0.92,0.10,0.0200,0.5,1.00E-06
+322,Moors and heathland,0.15,0.92,0.10,0.0200,2.7,1.00E-06
+323,Sclerophyllous vegetation,0.15,0.92,0.02,0.0500,0.5,1.00E-06
+324,Transitional woodland-shrub,0.15,0.92,0.10,0.0200,0.5,1.00E-06
+331,"Beaches, dunes, sands",0.25,0.95,0.60,0.0500,0.3,1.00E-06
+332,Bare rocks,0.15,0.92,0.01,0.1000,1.5,1.00E-06
+333,Sparsely vegetated areas,0.15,0.92,0.01,0.0100,0.5,1.00E-06
+334,Burnt areas,0.15,0.92,0.05,0.1000,0.3,1.00E-06
+335,Glaciers and perpetual snow,0.6,0.95,0.10,0.0100,1.0,5.00E-07
+411,Inland marshes,0.14,0.95,0.70,0.0100,20.0,1.00E-06
+412,Peat bogs,0.14,0.95,0.70,0.0100,20.0,1.00E-06
+421,Salt marshes,0.5,0.95,0.70,0.0100,20.0,1.00E-06
+422,Salines,0.5,0.95,0.70,0.0100,20.0,1.00E-06
+423,Intertidal flats,0.14,0.95,0.70,0.0100,20.0,1.00E-06
+500,Water,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+511,Water courses,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+512,Water bodies,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+521,Coastal lagoons,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+522,Estuaries,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+523,Sea and ocean,0.08,0.98,1.00,0.0001,0.6,1.00E-06
+# Additional classes
+# 113 most similar to class 133
+113,Isolated structures,0.25,0.95,0.03,0.3000,2.0,1.30E-06
+# 134 most similar to class 133
+134,"Land without current use",0.25,0.95,0.03,0.3000,2.0,1.30E-06
+# 210 most similar to class 241
+210,"Arable land (annual crops)",0.19,0.92,0.10,0.1000,0.5,7.00E-07
+# 220 most similar to class 221
+220,"Permanent crops (vineyards, fruit trees, olive groves)",0.19,0.92,0.10,0.1500,0.5,7.00E-07
+# 230 most similar to class 231
+230,"Pastures",0.19,0.92,0.10,0.1000,0.5,7.00E-07
+# 310 most similar to class 313
+310,"Forests",0.14,0.95,0.40,1.0000,0.5,8.00E-07
+# 320 most similar to class 321
+320,"Herbaceous vegetation associations (natural grassland, moors...)",0.15,0.92,0.10,0.0200,0.5,1.00E-06
+# 400 most similar to class 411
+400,Wetlands,0.14,0.95,0.70,0.0100,20.0,1.00E-06

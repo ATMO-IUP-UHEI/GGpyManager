@@ -34,11 +34,12 @@ Code,description,albedo,emissivity,Soil moisture,roughness length [m],Heat condu
 333,Sparsely vegetated areas,0.15,0.92,0.01,0.0100,0.5,1.00E-06
 334,Burnt areas,0.15,0.92,0.05,0.1000,0.3,1.00E-06
 335,Glaciers and perpetual snow,0.6,0.95,0.10,0.0100,1.0,5.00E-07
-411,Inland marshes,0.14,0.95,0.70,0.0100,20.0,1.00E-06
-412,Peat bogs,0.14,0.95,0.70,0.0100,20.0,1.00E-06
-421,Salt marshes,0.5,0.95,0.70,0.0100,20.0,1.00E-06
-422,Salines,0.5,0.95,0.70,0.0100,20.0,1.00E-06
-423,Intertidal flats,0.14,0.95,0.70,0.0100,20.0,1.00E-06
+# Change wetlands Heat conductivity from 20.0 to 2.0
+411,Inland marshes,0.14,0.95,0.70,0.0100,2.0,1.00E-06
+412,Peat bogs,0.14,0.95,0.70,0.0100,2.0,1.00E-06
+421,Salt marshes,0.5,0.95,0.70,0.0100,2.0,1.00E-06
+422,Salines,0.5,0.95,0.70,0.0100,2.0,1.00E-06
+423,Intertidal flats,0.14,0.95,0.70,0.0100,2.0,1.00E-06
 500,Water,0.08,0.98,1.00,0.0001,0.6,1.00E-06
 511,Water courses,0.08,0.98,1.00,0.0001,0.6,1.00E-06
 512,Water bodies,0.08,0.98,1.00,0.0001,0.6,1.00E-06

@@ -20,6 +20,7 @@ import numpy as np
 import xarray as xr
 from pathlib import Path
 import logging
+from typing import Union, Dict
 
 
 def gradient(elevation: xr.DataArray) -> xr.DataArray:
@@ -88,9 +89,7 @@ def smooth_elevation(
     elevation = elevation * weights + min_border_elevation * (1 - weights)
 
     # Smooth gradients
-    elevation = elevation.rolling(
-        {"x": n_grid_cells, "y": n_grid_cells}, center=True
-    ).mean()
+    elevation = elevation.rolling({"x": n_grid_cells, "y": n_grid_cells}).mean()
     logging.info(
         f"Max gradient after smoothing: {gradient(elevation).max().values:.1f} m"
     )
@@ -180,9 +179,75 @@ def test_dataset(geom: xr.Dataset, nx: int, ny: int, nz: int) -> None:
 
         dtype = geom[var].dtype
         assert dtype == specs[1], f"{var} dtype is {dtype} instead of {specs[1]}"
+        if dtype == np.float64:
+            assert geom[var].isnull().sum() == 0, f"{var} contains NaNs"
 
         dims = geom[var].dims
-        assert dims == specs[2], f"{var} dims is {dims} instead of {specs[1]}"
+        assert dims == specs[2], f"{var} dims is {dims} instead of {specs[2]}"
+
+
+def simpsons_rule(array: np.ndarray, axis: tuple[int]) -> np.ndarray:
+    """
+    Apply Simpson's rule for 2D integration on a 2x2 DataArray.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        m x n x 2 x 2 array.
+
+    Returns
+    -------
+    np.ndarray
+        Result of Simpson's rule integration.
+    """
+    assert len(axis) == 2, "Not two axis in reduce function."
+    assert array.shape[axis[0]] == 2, "Shape of first axis is not 2."
+    assert array.shape[axis[1]] == 2, "Shape of second axis is not 2."
+    assert len(array.shape) == 5, "Shape of array is not (nz, ny, nx, 2, 2)"
+    # Apply Simpson's rule
+    weights = np.array([[2, 1], [1, 2]]).reshape((1, 1, 1, 2, 2))
+    reduced = np.sum(weights * array, axis=axis) / 6
+    assert reduced.shape == (array.shape[0], array.shape[1], array.shape[2]), (
+        f"Reduced shape {reduced.shape} is not "
+        f"(nz, ny, nx) = {(array.shape[0], array.shape[1], array.shape[2])}"
+    )
+    return reduced
+
+
+def interp_stag_dim(da: xr.DataArray, how_dict: Dict[str, str]) -> xr.DataArray:
+    for dim, how in how_dict.items():
+        assert dim in [
+            "z_stag",
+            "y_stag",
+            "x_stag",
+            "yx_stag",
+        ], f"{dim} is not in [z_stag, y_stag, x_stag, yx_stag]"
+        assert (dim != "yx_stag") or (
+            how == "simpsons"
+        ), "yx_stag can only be used with how='simpsons'."
+        assert how in [
+            "diff",
+            "mean",
+            "simpsons",
+        ], f"{how} is not in [diff, mean, simpsons]"
+        if how == "diff":
+            da = da.diff(dim)
+            if dim in da.coords:
+                da = da.drop_vars(dim)
+            da = da.rename({dim: dim[0]})
+        elif how == "mean":
+            da = da.rolling({dim: 2}).mean().dropna(dim)
+            if dim in da.coords:
+                da = da.drop_vars(dim)
+            da = da.rename({dim: dim[0]})
+        elif how == "simpsons":
+            da = da.rolling({"y_stag": 2, "x_stag": 2}).reduce(simpsons_rule)
+            da = da.isel(y_stag=slice(1, None), x_stag=slice(1, None))
+            for dim in ["y_stag", "x_stag"]:
+                if dim in da.coords:
+                    da = da.drop_vars(dim)
+                da = da.rename({dim: dim[0]})
+    return da
 
 
 def create_ggeom_dataset(
@@ -244,6 +309,7 @@ def create_ggeom_dataset(
     geom["ZAX"] = (["x"], np.ones(nx) * dx)
     geom["ZAY"] = (["y"], np.ones(ny) * dy)
 
+    # Interpolate to staggered grid
     geom["AHE"] = (
         ["z_stag", "y_stag", "x_stag"],
         np.full((nz + 1, ny + 1, nx + 1), np.nan),
@@ -284,67 +350,62 @@ def create_ggeom_dataset(
     geom["AH"] = elevation
 
     # AREAX calculation (x-faces)
-    ahe = geom["AHE"].values  # Shape: (nz+1, ny+1, nx+1)
-    # Calculate differences along z-axis for all points at once
-    dz_ahe = np.diff(ahe, axis=0)  # Shape: (nz, ny+1, nx+1)
-
-    # Average adjacent y-points and multiply by dy
-    areax = (dz_ahe[:, :-1, :] + dz_ahe[:, 1:, :]) * 0.5 * dy
-    geom["AREAX"] = (["z", "y", "x_stag"], areax)
+    # areax = (
+    #     geom["AHE"].diff("z_stag").rolling({"y_stag": 2}).mean().dropna("y_stag") * dy
+    # )
+    areax = interp_stag_dim(geom["AHE"], {"z_stag": "diff", "y_stag": "mean"}) * dy
+    # geom["AREAX"] = (["z", "y", "x_stag"], areax)
+    # areax = areax.rename(z_stag="z", y_stag="y")
+    geom["AREAX"] = areax
 
     # AREAY calculation (y-faces)
-    # Average adjacent x-points and multiply by dx
-    areay = (dz_ahe[:, :, :-1] + dz_ahe[:, :, 1:]) * 0.5 * dx
-    geom["AREAY"] = (["z", "y_stag", "x"], areay)
+    # areay = geom["AHE"].diff("z_stag").rolling({"x_stag": 2}).mean() * dx
+    # areay = areay.rename(z_stag="z", x_stag="x")
+    areay = interp_stag_dim(geom["AHE"], {"z_stag": "diff", "x_stag": "mean"}) * dx
+    geom["AREAY"] = areay
 
     # AREAZX calculation (z-faces projected on x-faces)
-    # Calculate differences along x-axis for all points at once
-    dx_ahe = np.diff(ahe, axis=2)  # Shape: (nz+1, ny+1, nx)
-    areazx = (dx_ahe[:, :-1, :] + dx_ahe[:, 1:, :]) * 0.5 * dy
-    geom["AREAZX"] = (["z_stag", "y", "x"], areazx)
+    # areazx = geom["AHE"].diff("x_stag").rolling({"y_stag": 2}).mean() * dy
+    # areazx = areazx.rename(y_stag="y", x_stag="x")
+    areazx = interp_stag_dim(geom["AHE"], {"x_stag": "diff", "y_stag": "mean"}) * dy
+    geom["AREAZX"] = areazx
 
     # AREAZY calculation (z-faces projected on y-faces)
-    # Calculate differences along y-axis for all points at once
-    dy_ahe = np.diff(ahe, axis=1)  # Shape: (nz+1, ny, nx+1)
-    areazy = (dy_ahe[:, :, :-1] + dy_ahe[:, :, 1:]) * 0.5 * dx
-    geom["AREAZY"] = (["z_stag", "y", "x"], areazy)
+    # areazy = geom["AHE"].diff("y_stag").rolling({"x_stag": 2}).mean() * dx
+    # areazy = areazy.rename(y_stag="y", x_stag="x")
+    areazy = interp_stag_dim(geom["AHE"], {"y_stag": "diff", "x_stag": "mean"}) * dx
+    geom["AREAZY"] = areazy
 
     # Calculate bottom area of the grid cell
     areaz = np.sqrt(dx**2 * dy**2 + areazx**2 + areazy**2)
-    geom["AREAZ"] = (["z_stag", "y", "x"], areaz)
+    geom["AREAZ"] = areaz
 
     # Calculate the volume of the grid cell
     # Use 2-d Simpson's rule
     vol = (
-        (
-            2 * dz_ahe[:, :-1, :-1]
-            + dz_ahe[:, :-1, 1:]
-            + 2 * dz_ahe[:, 1:, 1:]
-            + dz_ahe[:, 1:, :-1]
-        )
-        / 6
+        interp_stag_dim(geom["AHE"], {"z_stag": "diff", "yx_stag": "simpsons"})
         * dx
         * dy
     )
-    geom["VOL"] = (["z", "y", "x"], vol)
+    # vol = vol.rename(z_stag="z", y_stag="y", x_stag="x")
+    geom["VOL"] = vol
 
     # Calculate the height of the centre point of each grid cell
-    zsp = np.mean(
-        [
-            ahe[_z : _z - 1, _y : _y - 1, _x : _x - 1]
-            for _z in range(0, 1)
-            for _y in range(0, 1)
-            for _x in range(0, 1)
-        ],
-        axis=0,
+    # zsp = geom["AHE"].rolling({"z_stag": 2, "y_stag": 2, "x_stag": 2}).mean()
+    # zsp = zsp.rename(z_stag="z", y_stag="y", x_stag="x")
+    zsp = interp_stag_dim(
+        geom["AHE"], {"z_stag": "mean", "y_stag": "mean", "x_stag": "mean"}
     )
-    geom["ZSP"] = (["z", "y", "x"], zsp)
+    geom["ZSP"] = zsp
 
     # Western border of model domain
     geom["IKOOA"] = ([], geom.x_stag[0].values)
     # Eastern border of model domain
     geom["JKOOA"] = ([], geom.y_stag[0].values)
     geom["WINKEL"] = ([], 0.0)
+    # Reorder data variables
+    keys = create_geometry_variable_specs(nx, ny, nz).keys()
+    geom = geom[keys]
     test_dataset(geom, nx, ny, nz)
     return geom
 
@@ -366,7 +427,7 @@ def num_to_str(num: float) -> str:
     return format(num, ".2f").rstrip("0").rstrip(".")
 
 
-def data_to_str(data: np.ndarray | xr.DataArray) -> str:
+def data_to_str(data: Union[np.ndarray, xr.DataArray]) -> str:
     """
     Convert an array to a string.
 
@@ -384,7 +445,7 @@ def data_to_str(data: np.ndarray | xr.DataArray) -> str:
     return " ".join([num_to_str(num) for num in array.ravel()])
 
 
-def write_ggeom_file(geom: xr.Dataset, file_path: Path | str) -> None:
+def write_ggeom_file(geom: xr.Dataset, file_path: Union[Path, str]) -> None:
     """
     Write a GRAMM geometry dataset to a ggeom.asc file.
 
@@ -540,7 +601,7 @@ def read_ggeom_file(file_path: str) -> xr.Dataset:
     return ds
 
 
-def main():
+def main() -> None:
     """Main function."""
     print(__doc__)
 

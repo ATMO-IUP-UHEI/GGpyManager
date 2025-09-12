@@ -461,6 +461,7 @@ def write_ggeom_file(geom: xr.Dataset, file_path: Union[Path, str]) -> None:
     AssertionError
         If file already exists or dataset validation fails.
     """
+    logging.info(f"Writing ggeom.asc file for GRAMM to {file_path}.")
     assert not Path(file_path).exists(), f"File path {file_path} already exists."
     test_dataset(geom, int(geom["NX"]), int(geom["NY"]), int(geom["NZ"]))
     with open(file_path, "w") as file:

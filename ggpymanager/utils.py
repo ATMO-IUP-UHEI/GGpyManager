@@ -13,8 +13,10 @@ from importlib import resources
 from pathlib import Path
 from typing import List, Optional
 
+import geopandas as gpd
 import numpy as np
 import pandas as pd
+import shapely
 import xarray as xr
 from scipy import sparse
 
@@ -162,6 +164,87 @@ def vector_from_direction_and_speed(direction, speed):
     ux = -speed * np.sin(rad)  # Eastward component
     vy = -speed * np.cos(rad)  # Northward component
     return ux, vy
+
+
+def create_domain_area(config: Dict[str, Any]) -> gpd.GeoDataFrame:
+    """
+    Create a GeoDataFrame representing the domain area from configuration.
+
+    Parameters
+    ----------
+    config : Dict[str, Any]
+        Configuration dictionary containing domain specifications with bbox coordinates
+        and CRS information.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing a single polygon geometry representing the domain area.
+    """
+    domain_area = gpd.GeoDataFrame(
+        geometry=[shapely.geometry.box(*config["domain"]["gramm"]["bbox"].values())],
+        crs=config["domain"]["crs"],
+    )
+
+    return domain_area
+
+
+def create_gramm_grid(config: Dict[str, Any]) -> xr.Dataset:
+    """
+    Create a GRAMM model grid based on configuration parameters.
+
+    Parameters
+    ----------
+    config : Dict[str, Any]
+        Configuration dictionary containing domain specifications including bbox,
+        grid spacing (dx, dy), and coordinate reference system.
+
+    Returns
+    -------
+    xr.Dataset
+        xarray Dataset containing grid coordinates and placeholder variables for
+        both regular and staggered grids.
+
+    Raises
+    ------
+    AssertionError
+        If bbox coordinates are invalid (x0 >= x1 or y0 >= y1).
+    """
+    minx = config["domain"]["gramm"]["bbox"]["x0"]
+    maxx = config["domain"]["gramm"]["bbox"]["x1"]
+    miny = config["domain"]["gramm"]["bbox"]["y0"]
+    maxy = config["domain"]["gramm"]["bbox"]["y1"]
+    assert minx < maxx, "Invalid bbox: x0 must be less than x1"
+    assert miny < maxy, "Invalid bbox: y0 must be less than y1"
+
+    dx = config["domain"]["gramm"]["dx"]
+    dy = config["domain"]["gramm"]["dy"]
+
+    logging.info(
+        f"Creating gramm grid with width {maxx - minx} m and height {maxy - miny} m"
+    )
+    # Create a grid for the gramm domain
+    x_stag_coords = np.arange(minx, maxx + dx, dx)
+    y_stag_coords = np.arange(miny, maxy + dy, dy)
+    x_coords = x_stag_coords[:-1] + dx / 2
+    y_coords = y_stag_coords[:-1] + dy / 2
+    gramm_grid = xr.Dataset(
+        data_vars={
+            "grid_placeholder": (("y", "x"), np.zeros((len(y_coords), len(x_coords)))),
+            "grid_placeholder_stag": (
+                ("y_stag", "x_stag"),
+                np.zeros((len(y_stag_coords), len(x_stag_coords))),
+            ),
+        },
+        coords={
+            "y": y_coords,
+            "x": x_coords,
+            "y_stag": y_stag_coords,
+            "x_stag": x_stag_coords,
+        },
+    )
+    gramm_grid = gramm_grid.rio.write_crs(config["domain"]["crs"])
+    return gramm_grid
 
 
 @dataclass

@@ -448,15 +448,12 @@ def read_buildings(path, GRAL=GRAL):
     return buildings
 
 
-def write_buildings_file(path, buildings: xr.DataArray) -> None:
-    if Path(path).exists():
-        logging.warning(f"Building file {path} already exists. Skipping writing.")
-        return None
-    buildings_stacked = buildings.stack(position=("x", "y"))
-    buildings_stacked = buildings_stacked[~buildings_stacked.isnull()]
+def write_buildings_file(path, building_height: xr.DataArray) -> None:
+    stacked = building_height.stack(position=("x", "y"))
+    stacked = stacked[~stacked.isnull()]
     logging.info(f"Writing building file to {path}...")
     with open(path, "w") as f:
-        for x, y, h in zip(buildings.x.values, buildings.y.values, buildings.values):
+        for x, y, h in zip(stacked.x.values, stacked.y.values, stacked.values):
             f.write(f"{x},{y},0,{h}\n")
 
 

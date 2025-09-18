@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from importlib import resources
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -166,12 +166,16 @@ def vector_from_direction_and_speed(direction, speed):
     return ux, vy
 
 
-def create_domain_area(config: Dict[str, Any]) -> gpd.GeoDataFrame:
+def create_domain_geometry(
+    name: Literal["gramm", "gral"], config: Dict[str, Any]
+) -> gpd.GeoDataFrame:
     """
     Create a GeoDataFrame representing the domain area from configuration.
 
     Parameters
     ----------
+    name : Literal["gramm", "gral"]
+        Name of the domain, either "gramm" or "gral".
     config : Dict[str, Any]
         Configuration dictionary containing domain specifications with bbox coordinates
         and CRS information.
@@ -182,19 +186,23 @@ def create_domain_area(config: Dict[str, Any]) -> gpd.GeoDataFrame:
         GeoDataFrame containing a single polygon geometry representing the domain area.
     """
     domain_area = gpd.GeoDataFrame(
-        geometry=[shapely.geometry.box(*config["domain"]["gramm"]["bbox"].values())],
+        geometry=[shapely.geometry.box(*config["domain"][name]["bbox"].values())],
         crs=config["domain"]["crs"],
     )
 
     return domain_area
 
 
-def create_gramm_grid(config: Dict[str, Any]) -> xr.Dataset:
+def create_domain_grid(
+    name: Literal["gramm", "gral"], config: Dict[str, Any]
+) -> xr.Dataset:
     """
     Create a GRAMM model grid based on configuration parameters.
 
     Parameters
     ----------
+    name : Literal["gramm", "gral"]
+        Name of the domain, either "gramm" or "gral".
     config : Dict[str, Any]
         Configuration dictionary containing domain specifications including bbox,
         grid spacing (dx, dy), and coordinate reference system.
@@ -210,25 +218,25 @@ def create_gramm_grid(config: Dict[str, Any]) -> xr.Dataset:
     AssertionError
         If bbox coordinates are invalid (x0 >= x1 or y0 >= y1).
     """
-    minx = config["domain"]["gramm"]["bbox"]["x0"]
-    maxx = config["domain"]["gramm"]["bbox"]["x1"]
-    miny = config["domain"]["gramm"]["bbox"]["y0"]
-    maxy = config["domain"]["gramm"]["bbox"]["y1"]
+    minx = config["domain"][name]["bbox"]["x0"]
+    maxx = config["domain"][name]["bbox"]["x1"]
+    miny = config["domain"][name]["bbox"]["y0"]
+    maxy = config["domain"][name]["bbox"]["y1"]
     assert minx < maxx, "Invalid bbox: x0 must be less than x1"
     assert miny < maxy, "Invalid bbox: y0 must be less than y1"
 
-    dx = config["domain"]["gramm"]["dx"]
-    dy = config["domain"]["gramm"]["dy"]
+    dx = config["domain"][name]["dx"]
+    dy = config["domain"][name]["dy"]
 
     logging.info(
-        f"Creating gramm grid with width {maxx - minx} m and height {maxy - miny} m"
+        f"Creating {name} grid with width {maxx - minx} m and height {maxy - miny} m"
     )
-    # Create a grid for the gramm domain
+    # Create a grid for the domain
     x_stag_coords = np.arange(minx, maxx + dx, dx)
     y_stag_coords = np.arange(miny, maxy + dy, dy)
     x_coords = x_stag_coords[:-1] + dx / 2
     y_coords = y_stag_coords[:-1] + dy / 2
-    gramm_grid = xr.Dataset(
+    grid = xr.Dataset(
         data_vars={
             "grid_placeholder": (("y", "x"), np.zeros((len(y_coords), len(x_coords)))),
             "grid_placeholder_stag": (
@@ -243,8 +251,8 @@ def create_gramm_grid(config: Dict[str, Any]) -> xr.Dataset:
             "x_stag": x_stag_coords,
         },
     )
-    gramm_grid = gramm_grid.rio.write_crs(config["domain"]["crs"])
-    return gramm_grid
+    grid = grid.rio.write_crs(config["domain"]["crs"])
+    return grid
 
 
 @dataclass
@@ -1117,6 +1125,32 @@ def read_esri_ascii(path: str | Path) -> tuple[np.ndarray, dict]:
         data = np.loadtxt(f)
         assert data.shape == (header["nrows"], header["ncols"])
     return data, header
+
+
+def write_esri_ascii(path: str | Path, data: xr.DataArray) -> None:
+    if Path(path).exists():
+        logging.warning(f"File {path} already exists!")
+        raise FileExistsError
+    ncols, nrows = data.sizes["x"], data.sizes["y"]
+    xllcorner = data.x.min().values - 5
+    yllcorner = data.y.min().values - 5
+    cellsize = data.x.diff("x").mean()
+    nodata_value = -9999
+    header = (
+        "NCOLS {}\n"
+        "NROWS {}\n"
+        "XLLCORNER {}\n"
+        "YLLCORNER {}\n"
+        "CELLSIZE {}\n"
+        "NODATA_VALUE {}\n"
+    ).format(ncols, nrows, xllcorner, yllcorner, cellsize, nodata_value)
+    with open(path, "w") as f:
+        f.write(header)
+        for i in range(nrows):
+            # Start backwards to have the origin at the lower left corner
+            idy = nrows - i - 1
+            f.write(" ".join(data[dict(y=idy)].values.astype(int).astype(str)))
+            f.write("\n")
 
 
 def load_corine_lookup_table() -> pd.DataFrame:

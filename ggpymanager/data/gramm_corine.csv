@@ -62,4 +62,4 @@ Code,description,albedo,emissivity,Soil moisture,roughness length [m],Heat condu
 # 320 most similar to class 321
 320,"Herbaceous vegetation associations (natural grassland, moors...)",0.15,0.92,0.10,0.0200,0.5,1.00E-06
 # 400 most similar to class 411
-400,Wetlands,0.14,0.95,0.70,0.0100,20.0,1.00E-06
+400,Wetlands,0.14,0.95,0.70,0.0100,2.0,1.00E-06

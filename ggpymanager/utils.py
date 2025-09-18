@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from importlib import resources
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 import geopandas as gpd
 import numpy as np
@@ -358,53 +358,25 @@ def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
     return config
 
 
-def read_landuse(path, GRAMM=GRAMM):
-    f = open(path, "r")
-    data = f.readlines()
-    f.close()
+LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
 
-    thermalcondu = data[0].split()
-    # it is actually heatcondu/thermalcondu/900
-    #   ->  thermalcondu=1/(data[0]*900/data[1])
-    thermalcondu = [float(i) for i in thermalcondu]
 
-    heatcondu = data[1].split()
-    heatcondu = [float(i) for i in heatcondu]
+def read_landuse(path, shape):
+    landuse_data = {}
+    with open(path) as f:
+        for line, name in zip(f, LANDUSE_VARS):
+            landuse_data[name] = np.array([float(d) for d in line.split()]).reshape(
+                shape
+            )
+    return landuse_data
 
-    thermalcondu = np.divide(1, np.divide(thermalcondu, heatcondu) * 900)
-    # thermalcondu = [round_sig(i) for i in thermalcondu]
 
-    roughness = data[2].split()
-    roughness = [float(i) for i in roughness]
-
-    moisture = data[3].split()
-    moisture = [float(i) for i in moisture]
-
-    emiss = data[4].split()
-    emiss = [float(i) for i in emiss]
-
-    albedo = data[5].split()
-    albedo = [float(i) for i in albedo]
-
-    landuse_ind = 0
-    thermalcondum = np.zeros((GRAMM.nx, GRAMM.ny), float)
-    heatcondum = np.zeros((GRAMM.nx, GRAMM.ny), float)
-    roughnessm = np.zeros((GRAMM.nx, GRAMM.ny), float)
-    moisturem = np.zeros((GRAMM.nx, GRAMM.ny), float)
-    emissm = np.zeros((GRAMM.nx, GRAMM.ny), float)
-    albedom = np.zeros((GRAMM.nx, GRAMM.ny), float)
-
-    for i in range(GRAMM.ny):
-        for j in range(GRAMM.nx):
-            thermalcondum[j, i] = float(thermalcondu[landuse_ind])
-            heatcondum[j, i] = float(heatcondu[landuse_ind])
-            roughnessm[j, i] = float(roughness[landuse_ind])
-            moisturem[j, i] = float(moisture[landuse_ind])
-            emissm[j, i] = float(emiss[landuse_ind])
-            albedom[j, i] = float(albedo[landuse_ind])
-            landuse_ind += 1
-
-    return thermalcondum, heatcondum, roughnessm, moisturem, emissm, albedom
+def write_landuse(path, landuse_data: xr.Dataset):
+    with open(path, "w") as f:
+        for name in LANDUSE_VARS:
+            arr = landuse_data[name].values.reshape(-1)
+            line = " ".join(str(x) for x in arr)
+            f.write(line + "\n")
 
 
 def read_topography(path):
@@ -447,10 +419,10 @@ def read_gramm_windfield(path):
     datarr = np.reshape(datarr, [nx, ny, nz, 3])
     wind_u = datarr[:, :, :, 0] * 0.01
     wind_v = datarr[:, :, :, 1] * 0.01
-    # wind_w = datarr[:, :, :, 2] * 0.01
+    wind_w = datarr[:, :, :, 2] * 0.01
     # umag = np.hypot(wind_u[:, :, :], wind_v[:, :, :])
 
-    return info, wind_u, wind_v
+    return info, wind_u, wind_v, wind_w
 
 
 def read_buildings(path, GRAL=GRAL):

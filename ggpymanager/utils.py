@@ -448,6 +448,18 @@ def read_buildings(path, GRAL=GRAL):
     return buildings
 
 
+def write_buildings_file(path, buildings: xr.DataArray) -> None:
+    if Path(path).exists():
+        logging.warning(f"Building file {path} already exists. Skipping writing.")
+        return None
+    buildings_stacked = buildings.stack(position=("x", "y"))
+    buildings_stacked = buildings_stacked[~buildings_stacked.isnull()]
+    logging.info(f"Writing building file to {path}...")
+    with open(path, "w") as f:
+        for x, y, h in zip(buildings.x.values, buildings.y.values, buildings.values):
+            f.write(f"{x},{y},0,{h}\n")
+
+
 def read_gral_geometries(path):
     with open(path, mode="rb") as binfile:
         byte_list = binfile.read()

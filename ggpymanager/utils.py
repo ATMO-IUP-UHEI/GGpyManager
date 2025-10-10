@@ -1143,7 +1143,7 @@ def write_esri_ascii(path: str | Path, data: xr.DataArray) -> None:
     ncols, nrows = data.sizes["x"], data.sizes["y"]
     xllcorner = data.x.min().values - 5
     yllcorner = data.y.min().values - 5
-    cellsize = data.x.diff("x").mean()
+    cellsize = data.x.diff("x").mean().values
     nodata_value = -9999
     header = (
         "NCOLS {}\n"

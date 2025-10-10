@@ -1242,3 +1242,91 @@ def convert_to_gramm_landuse_variables(corine_data: xr.DataArray) -> xr.Dataset:
             xds[var].max() <= max_val
         ), f"{var} max value is above limit of {xds[var].max().values} > {max_val}"
     return xds
+
+
+def write_point_dat(
+    path, x, y, z, flux, exit_velocity, stack_diameter, exit_temperature, source_group
+) -> None:
+    if Path(path).exists():
+        logging.warning(f"File {path} already exists!")
+        raise FileExistsError
+    assert all(exit_temperature > 273.15), "Exit temperature must be in Kelvin!"
+    assert all(flux != 0), "Flux must be non-zero!"
+    assert all(stack_diameter > 0), "Stack diameter must be positive!"
+    assert all(exit_velocity > 0), "Exit velocity must be positive!"
+    assert source_group.min() > 0, "Source group index is 1-based!"
+    assert (
+        len(x)
+        == len(y)
+        == len(z)
+        == len(flux)
+        == len(exit_velocity)
+        == len(stack_diameter)
+        == len(exit_temperature)
+        == len(source_group)
+    ), "All input arrays must have the same length!"
+    file_str = "---\n"
+    columns = [
+        "x",
+        "y",
+        "z",
+        "Emission [kg/h]",
+        "-",
+        "-",
+        "-",
+        "exit-velocity [m/s]",
+        "stack-diameter [m]",
+        "exit-temperature [K]",
+        "source group",
+    ]
+    file_str += ", ".join(columns) + "\n"
+    for i in range(len(x)):
+        var_list = [
+            x[i],
+            y[i],
+            z[i],
+            flux[i],
+            0,
+            0,
+            0,
+            exit_velocity[i],
+            stack_diameter[i],
+            exit_temperature[i],
+            source_group[i],
+        ]
+        file_str += ", ".join([str(np.round(var, 1)) for var in var_list]) + "\n"
+    with open(path, "w") as f:
+        f.write(file_str)
+
+
+def write_cadastre_dat(path, x, y, z, dx, dy, dz, flux, source_group) -> None:
+    if Path(path).exists():
+        logging.warning(f"File {path} already exists!")
+        raise FileExistsError
+    assert all(flux >= 0), "Flux must be positive!"
+    assert source_group.min() > 0, "Source group index is 1-based!"
+    assert (
+        len(x) == len(y) == len(z) == len(flux) == len(source_group)
+    ), "All input arrays must have the same length!"
+    df = pd.DataFrame(
+        {
+            "x": x,
+            "y": y,
+            "z": z,
+            "dx": dx,
+            "dy": dy,
+            "dz": dz,
+            "Emission [kg/h]": flux,
+            "-": np.zeros(len(flux)),
+            "--": np.zeros(len(flux)),
+            "---": np.zeros(len(flux)),
+            "source group": source_group,
+            "deposition data": np.zeros(len(flux)),
+        }
+    )
+    logging.info(f"Total flux: {df['Emission [kg/h]'].sum()} kg/h")
+    logging.info(f"Total number of cadastre entries: {len(df)}")
+    df = df[df["Emission [kg/h]"] > 0]
+    logging.info(f"Number of cadastre entries after removing zero fluxes: {len(df)}")
+    logging.info(f"Writing cadastre file to {path}...")
+    df.to_csv(path, index=False, sep=",", mode="w")

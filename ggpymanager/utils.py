@@ -531,25 +531,21 @@ def read_gral_windfield(path):
 def read_con_file(path, GRAL=GRAL):
     with path.open("rb") as f:
         data = f.read()
-    # Check if empty
+
     if len(data) <= 4:
         return -1
 
-    # header = struct.unpack("i", data[:4])
-    data_list = list(struct.iter_unpack("iif", data[4:]))
-    datarr = np.array(data_list)
-    con = np.zeros((GRAL.nx, GRAL.ny))
+    # Define structured dtype for 'iif' format
+    dt = np.dtype([("x", "<i4"), ("y", "<i4"), ("val", "<f4")])
+    datarr = np.frombuffer(data[4:], dtype=dt)
 
-    x = datarr[:, 0]
-    y = datarr[:, 1]
-    idx_float = ((x - GRAL.xmin) / GRAL.dx + 0.5)
-    idy_float = ((y - GRAL.ymin) / GRAL.dy + 0.5)
-    idx = idx_float.astype(int)
-    idy = idy_float.astype(int)
-    assert np.all(idx_float == idx)
-    assert np.all(idy_float == idy)
+    con = np.zeros((GRAL.nx, GRAL.ny), dtype=np.float32)
 
-    con[idx, idy] = datarr[:, 2]
+    # Compute indices directly
+    idx = ((datarr["x"] - GRAL.xmin) / GRAL.dx + 0.5).astype(int)
+    idy = ((datarr["y"] - GRAL.ymin) / GRAL.dy + 0.5).astype(int)
+
+    con[idx, idy] = datarr["val"]
 
     return con
 

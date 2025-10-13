@@ -542,9 +542,12 @@ def read_con_file(path, GRAL=GRAL):
 
     x = datarr[:, 0]
     y = datarr[:, 1]
-
-    idx = ((x - GRAL.xmin) / GRAL.dx).astype(int)
-    idy = ((y - GRAL.ymin) / GRAL.dy).astype(int)
+    idx_float = ((x - GRAL.xmin) / GRAL.dx + 0.5)
+    idy_float = ((y - GRAL.ymin) / GRAL.dy + 0.5)
+    idx = idx_float.astype(int)
+    idy = idy_float.astype(int)
+    assert np.all(idx_float == idx)
+    assert np.all(idy_float == idy)
 
     con[idx, idy] = datarr[:, 2]
 

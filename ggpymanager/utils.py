@@ -491,40 +491,34 @@ def read_gral_geometries(path):
 
 
 def read_gral_windfield(path):
+    # Read file data
     if zipfile.is_zipfile(path):
-        gff = zipfile.ZipFile(path, "r")
-
-        for filename in gff.namelist():
-            byte_list: bytes = gff.read(filename)
-            gff.close()
-
+        with zipfile.ZipFile(path, "r") as gff:
+            filename = gff.namelist()[0]  # Get first file directly
+            byte_list = gff.read(filename)
     else:
         with open(path, mode="rb") as binfile:
             byte_list = binfile.read()
-            binfile.close()
 
+    # Parse header
     nheader = 32
-    header = byte_list[:nheader]  # type: ignore
-    nz, ny, nx, direction, speed, akla, dxy, h = struct.unpack("iiiffifi", header)
-    # convert direction to degree (strange, but seems to work)
+    nz, ny, nx, direction, speed, akla, dxy, h = struct.unpack(
+        "iiiffifi", byte_list[:nheader]
+    )
     direction = 270.0 - np.rad2deg(direction)
 
-    dt = np.dtype(np.short)
-
+    # Parse data directly with proper shape
     count = (nx + 1) * (ny + 1) * (nz + 1) * 3
+    data = np.frombuffer(byte_list, dtype=np.int16, count=count, offset=nheader)
 
-    # data = np.fromstring(
-    #   byte_list[nheader:len(byte_list)], dtype=dt, count=count, sep=''
-    # )
-    data = np.frombuffer(byte_list[nheader:], dtype=dt, count=count)  # type: ignore
+    # Reshape and slice in one operation
+    data = data.reshape(nx + 1, ny + 1, nz + 1, 3)
 
-    data = np.reshape(data, [nx + 1, ny + 1, nz + 1, 3])
-    # Cut out zeros at the border
-    ux = data[:-1, :-1, 1:, 0] * 0.01
-    vy = data[:-1, :-1, 1:, 1] * 0.01
-    wz = data[:-1, :-1, 1:, 2] * 0.01
+    # Use views instead of copies, multiply in-place
+    ux = data[:-1, :-1, 1:, 0].astype(np.float32) * 0.01
+    vy = data[:-1, :-1, 1:, 1].astype(np.float32) * 0.01
+    wz = data[:-1, :-1, 1:, 2].astype(np.float32) * 0.01
 
-    # print("done loading GRAL flowfields")
     return ux, vy, wz
 
 
@@ -533,7 +527,7 @@ def read_con_file(path, GRAL=GRAL):
         data = f.read()
 
     if len(data) <= 4:
-        return -1
+        return None
 
     # Define structured dtype for 'iif' format
     dt = np.dtype([("x", "<i4"), ("y", "<i4"), ("val", "<f4")])

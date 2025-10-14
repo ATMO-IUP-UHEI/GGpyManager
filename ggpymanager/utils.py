@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from functools import wraps
 from importlib import resources
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import geopandas as gpd
 import numpy as np
@@ -457,35 +457,55 @@ def write_buildings_file(path, building_height: xr.DataArray) -> None:
             f.write(f"{x},{y},0,{h}\n")
 
 
-def read_gral_geometries(path):
+def read_gral_geometries(
+    path: str,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Reads GRAL geometry data from a binary file and returns surface elevation (ahk),
+    surface index (kkart), building height (bui_height), and orography (oro).
+
+    Parameters
+    ----------
+    path : str
+        Path to the binary geometry file.
+
+    Returns
+    -------
+    ahk : np.ndarray
+        2D array of surface elevations.
+    kkart : np.ndarray
+        2D array of surface indices (int).
+    bui_height : np.ndarray
+        2D array of building heights.
+    oro : np.ndarray
+        2D array of orography (surface elevation minus building height).
+    """
     with open(path, mode="rb") as binfile:
         byte_list = binfile.read()
-        binfile.close()
 
     nheader = 32
     header = byte_list[:nheader]
     nz, ny, nx, ikooagral, jkooagral, dzk, stretch, ahmin = struct.unpack(
         "iiiiifff", header
     )
-    # print(dzk, stretch)
-    blub = byte_list[nheader:]
-    # float and int32 -> 4byte each
-    # somehow the array is padded with 0? Therefore it is 1 cell bigger in x- and
-    # y-dimension
-    datarr = np.zeros([nx + 1, ny + 1, 3])
-    c = 0
-    for i in range(nx + 1):
-        for j in range(ny + 1):
-            datarr[i, j, 0] = np.frombuffer(blub[c : (c + 4)], dtype=np.float32)
-            datarr[i, j, 1] = np.frombuffer(blub[(c + 4) : (c + 8)], dtype=np.int32)
-            datarr[i, j, 2] = np.frombuffer(blub[(c + 8) : (c + 12)], dtype=np.float32)
-            c += 12
 
-    # remove the padding with zeroes at both ends
-    ahk = datarr[:-1, :-1, 0]  # surface elevation
-    kkart = datarr[:-1, :-1, 1].astype(int)  # index of gral surface
-    bui_height = datarr[:-1, :-1, 2]  # building height
-    oro = ahk - bui_height  # orography / topography (without buildings!)
+    # Read geometry buffer efficiently
+    blub = byte_list[nheader:]
+
+    # Each data record: float32, int32, float32 (12 bytes per cell)
+    num_cells = (nx + 1) * (ny + 1)
+    arr = np.frombuffer(
+        blub,
+        dtype=[("ahk", "f4"), ("kkart", "i4"), ("bui_height", "f4")],
+        count=num_cells,
+    )
+    arr_reshaped = arr.reshape((nx + 1, ny + 1))
+
+    # Remove zero-padding at upper bounds (last row and column)
+    ahk = arr_reshaped[:-1, :-1]["ahk"]
+    kkart = arr_reshaped[:-1, :-1]["kkart"]
+    bui_height = arr_reshaped[:-1, :-1]["bui_height"]
+    oro = ahk - bui_height
 
     return ahk, kkart, bui_height, oro
 

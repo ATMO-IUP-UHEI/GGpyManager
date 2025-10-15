@@ -510,7 +510,7 @@ def read_gral_geometries(
     return ahk, kkart, bui_height, oro
 
 
-def read_gral_windfield(path):
+def read_gral_windfield(path, as_xarray=False, config=None):
     # Read file data
     if zipfile.is_zipfile(path):
         with zipfile.ZipFile(path, "r") as gff:
@@ -522,7 +522,7 @@ def read_gral_windfield(path):
 
     # Parse header
     nheader = 32
-    nz, ny, nx, direction, speed, akla, dxy, h = struct.unpack(
+    nz, ny, nx, direction, speed, stab_class, dxy, h = struct.unpack(
         "iiiffifi", byte_list[:nheader]
     )
     direction = 270.0 - np.rad2deg(direction)
@@ -538,8 +538,39 @@ def read_gral_windfield(path):
     ux = data[:-1, :-1, 1:, 0].astype(np.float32) * 0.01
     vy = data[:-1, :-1, 1:, 1].astype(np.float32) * 0.01
     wz = data[:-1, :-1, 1:, 2].astype(np.float32) * 0.01
+    if not as_xarray:
+        return ux, vy, wz
+    else:
+        if config is None:
+            raise ValueError("Config must be provided when as_dataset is True.")
+        x = np.arange(0, nx) * config["dx"] + config["west_border"] + config["dx"] / 2
+        y = np.arange(0, ny) * config["dy"] + config["south_border"] + config["dy"] / 2
 
-    return ux, vy, wz
+        z_ids = np.zeros(nz)
+        z_ids[1:] = np.arange(0, nz - 1)
+        dz = config["dz0"] * (config["stretching_factor"] ** z_ids)
+        z = np.cumsum(dz) - dz / 2
+
+        wind = xr.Dataset(
+            {
+                "ux": (("x", "y", "z"), ux),
+                "vy": (("x", "y", "z"), vy),
+                "wz": (("x", "y", "z"), wz),
+            },
+            coords={"x": x, "y": y, "z": z},
+            attrs={
+                "speed": speed,
+                "direction": direction,
+                "stab_class": stab_class,
+                "dxy": dxy,
+                "h": h,
+                "description": f"Wind fields from GRAL read from {path.name}.",
+            },
+        )
+        wind["ux"].attrs = {"units": "m/s", "long_name": "Eastward wind component"}
+        wind["vy"].attrs = {"units": "m/s", "long_name": "Northward wind component"}
+        wind["wz"].attrs = {"units": "m/s", "long_name": "Vertical wind component"}
+        return wind
 
 
 def read_con_file(path, GRAL=GRAL):

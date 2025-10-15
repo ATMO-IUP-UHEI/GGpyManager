@@ -573,7 +573,7 @@ def read_gral_concentration(path):
     con_dict = {}
     conc_file = np.load(path, allow_pickle=True)
     for key in conc_file:
-        con_matrix = conc_file[key].all().toarray()
+        con_matrix = conc_file[key].item().toarray()
         con_dict[key] = con_matrix
     return con_dict
     # con_dict = {}

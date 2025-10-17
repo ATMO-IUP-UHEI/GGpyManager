@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import shapely
 import xarray as xr
+import rasterio
 from scipy import sparse
 
 
@@ -979,92 +980,96 @@ def filter_lines(raw_lines):
 
 
 def read_gral_stdout(path: str) -> GRALLogMetadata:
-    with Path(path).open() as f:
-        raw_lines = f.readlines()
-
-    lines = filter_lines(raw_lines)
     lm = GRALLogMetadata()
+    try:
+        with Path(path).open() as f:
+            raw_lines = f.readlines()
 
-    for i, l in enumerate(lines):
-        l_iter = iter(lines[i + 1 :])
+        lines = filter_lines(raw_lines)
 
-        match True:
-            case _ if "VERSION" in l:
-                lm.version = l
-                lm.plattform = next(l_iter)
-                lm.dotnet_version = next(l_iter)
+        for i, l in enumerate(lines):
+            l_iter = iter(lines[i + 1 :])
 
-            case _ if "Source group count:" in l:
-                lm.n_source_groups = int(l.split(":")[1])
+            match True:
+                case _ if "VERSION" in l:
+                    lm.version = l
+                    lm.plattform = next(l_iter)
+                    lm.dotnet_version = next(l_iter)
 
-            case _ if "Reading GRAMM orography" in l:
-                lm.ggeom_file_read = True
+                case _ if "Source group count:" in l:
+                    lm.n_source_groups = int(l.split(":")[1])
 
-            case _ if "Reading GRAL_topofile" in l:
-                lm.gral_topofile_read = True
+                case _ if "Reading GRAMM orography" in l:
+                    lm.ggeom_file_read = True
 
-            case _ if "Reading building file" in l:
-                lm.building_file_read = True
+                case _ if "Reading GRAL_topofile" in l:
+                    lm.gral_topofile_read = True
 
-            case _ if "Total number of horizontal slices for concentration grid:" in l:
-                n = int(l.split(":")[1])
-                lm.n_horizontal_slices = n
-                slice_height = []
-                for j in range(n):
-                    slice_height.append(int(next(l_iter).split(":")[1]))
+                case _ if "Reading building file" in l:
+                    lm.building_file_read = True
 
-            case _ if "Reading file point.dat" in l:
-                lm.point_emissions_read = True
-                lm.n_point_emissions, lm.total_point_emissions = parse_emission_data(
-                    l_iter, has_parentheses=False
-                )
+                case _ if (
+                    "Total number of horizontal slices for concentration grid:" in l
+                ):
+                    n = int(l.split(":")[1])
+                    lm.n_horizontal_slices = n
+                    slice_height = []
+                    for j in range(n):
+                        slice_height.append(int(next(l_iter).split(":")[1]))
 
-            case _ if "Reading file line.dat" in l:
-                lm.line_emissions_read = True
-                lm.n_line_emissions, lm.total_line_emissions = parse_emission_data(
-                    l_iter, has_parentheses=True
-                )
+                case _ if "Reading file point.dat" in l:
+                    lm.point_emissions_read = True
+                    lm.n_point_emissions, lm.total_point_emissions = (
+                        parse_emission_data(l_iter, has_parentheses=False)
+                    )
 
-            case _ if "Reading file cadastre.dat" in l:
-                lm.area_emissions_read = True
-                lm.n_area_emissions, lm.total_area_emissions = parse_emission_data(
-                    l_iter, has_parentheses=False
-                )
+                case _ if "Reading file line.dat" in l:
+                    lm.line_emissions_read = True
+                    lm.n_line_emissions, lm.total_line_emissions = parse_emission_data(
+                        l_iter, has_parentheses=True
+                    )
 
-            case _ if "ADVECTION" in l:
-                lm.advection_computated = True
-                lm.numerical_stabilities = []
-                next_l = next(l_iter)
-                while next_l.startswith("ITERATION"):
-                    lm.numerical_stabilities.append(float(next_l.split(":")[1]))
+                case _ if "Reading file cadastre.dat" in l:
+                    lm.area_emissions_read = True
+                    lm.n_area_emissions, lm.total_area_emissions = parse_emission_data(
+                        l_iter, has_parentheses=False
+                    )
+
+                case _ if "ADVECTION" in l:
+                    lm.advection_computated = True
+                    lm.numerical_stabilities = []
                     next_l = next(l_iter)
+                    while next_l.startswith("ITERATION"):
+                        lm.numerical_stabilities.append(float(next_l.split(":")[1]))
+                        next_l = next(l_iter)
 
-            case _ if "Obukhov length" in l:
-                lm.obukhov_length = float(l.split(":")[1])
+                case _ if "Obukhov length" in l:
+                    lm.obukhov_length = float(l.split(":")[1])
 
-            case _ if "Friction velocity" in l:
-                lm.friction_velocity = float(l.split(":")[1])
+                case _ if "Friction velocity" in l:
+                    lm.friction_velocity = float(l.split(":")[1])
 
-            case _ if "Boundary layer height" in l:  # Fixed duplicate "Obukhov length"
-                lm.boundary_layer_height = float(l.split(":")[1])
+                case _ if "Boundary layer height" in l:
+                    lm.boundary_layer_height = float(l.split(":")[1])
 
-            case _ if "Init meteo:" in l:
-                meteo_data = parse_meteo_data(l)
-                lm.init_wind_speed = meteo_data["wind_speed"]
-                lm.init_direction = meteo_data["direction"]
-                lm.init_stability_class = meteo_data["stability_class"]
+                case _ if "Init meteo:" in l:
+                    meteo_data = parse_meteo_data(l)
+                    lm.init_wind_speed = meteo_data["wind_speed"]
+                    lm.init_direction = meteo_data["direction"]
+                    lm.init_stability_class = meteo_data["stability_class"]
 
-            case _ if "GRAMM meteo:" in l:
-                meteo_data = parse_meteo_data(l)
-                lm.gramm_wind_speed = meteo_data["wind_speed"]
-                lm.gramm_direction = meteo_data["direction"]
-                lm.gramm_stability_class = meteo_data["stability_class"]
+                case _ if "GRAMM meteo:" in l:
+                    meteo_data = parse_meteo_data(l)
+                    lm.gramm_wind_speed = meteo_data["wind_speed"]
+                    lm.gramm_direction = meteo_data["direction"]
+                    lm.gramm_stability_class = meteo_data["stability_class"]
 
-            case _ if "Total simulation time" in l:
-                lm.total_simulation_time = float(l.split(":")[1])
-                lm.dispersion_time = float(next(l_iter).split(":")[1])
-                lm.flow_field_time = float(next(l_iter).split(":")[1])
-
+                case _ if "Total simulation time" in l:
+                    lm.total_simulation_time = float(l.split(":")[1])
+                    lm.dispersion_time = float(next(l_iter).split(":")[1])
+                    lm.flow_field_time = float(next(l_iter).split(":")[1])
+    except Exception as e:
+        logging.error(f"Error reading GRAL log file: {e}")
     return lm
 
 
@@ -1374,3 +1379,27 @@ def write_cadastre_dat(path, x, y, z, dx, dy, dz, flux, source_group) -> None:
     logging.info(f"Number of cadastre entries after removing zero fluxes: {len(df)}")
     logging.info(f"Writing cadastre file to {path}...")
     df.to_csv(path, index=False, sep=",", mode="w")
+
+
+def get_centered_custom_projection(gdf: gpd.GeoDataFrame) -> rasterio.CRS:
+    """
+    Create a custom transverse Mercator projection centered on the GeoDataFrame.
+
+    Parameters
+    ----------
+    gdf : gpd.GeoDataFrame
+        GeoDataFrame for which to create a centered projection.
+
+    Returns
+    -------
+    rasterio.CRS
+        Custom transverse Mercator CRS centered on the input data.
+    """
+    minx, miny, maxx, maxy = gdf.to_crs("EPSG:4326").total_bounds
+    center_lon = (minx + maxx) / 2
+    center_lat = (miny + maxy) / 2
+    custom_proj = rasterio.CRS.from_proj4(
+        f"+proj=tmerc +lat_0={center_lat} +lon_0={center_lon} "
+        "+k=1 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
+    )
+    return custom_proj

@@ -1381,23 +1381,24 @@ def write_cadastre_dat(path, x, y, z, dx, dy, dz, flux, source_group) -> None:
     df.to_csv(path, index=False, sep=",", mode="w")
 
 
-def get_centered_custom_projection(gdf: gpd.GeoDataFrame) -> rasterio.CRS:
+def get_centered_custom_projection(
+    center_lat: float, center_lon: float
+) -> rasterio.CRS:
     """
     Create a custom transverse Mercator projection centered on the GeoDataFrame.
 
     Parameters
     ----------
-    gdf : gpd.GeoDataFrame
-        GeoDataFrame for which to create a centered projection.
+    center_lat : float
+        Latitude of the center point.
+    center_lon : float
+        Longitude of the center point.
 
     Returns
     -------
     rasterio.CRS
         Custom transverse Mercator CRS centered on the input data.
     """
-    minx, miny, maxx, maxy = gdf.to_crs("EPSG:4326").total_bounds
-    center_lon = (minx + maxx) / 2
-    center_lat = (miny + maxy) / 2
     custom_proj = rasterio.CRS.from_proj4(
         f"+proj=tmerc +lat_0={center_lat} +lon_0={center_lon} "
         "+k=1 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"

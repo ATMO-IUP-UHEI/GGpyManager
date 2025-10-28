@@ -25,7 +25,7 @@ class Catalog:
             raise ValueError(f"Model must be 'gramm' or 'gral', got {model}")
         self.model = model
         self.catalog_path = Path(catalog_path)
-        logging.info(f"Scannin catalog {self.catalog_path}")
+        logging.info(f"Scanning catalog {self.catalog_path}")
         self._check_input_files()
         self._check_simulations()
 

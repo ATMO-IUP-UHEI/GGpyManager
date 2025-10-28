@@ -44,3 +44,6 @@ INPUT_FILES = {
         "Max_Proc.txt",
     ],
 }
+
+# GGPyManager configuration constants
+STATUS_LOG_FILE_NAME = "catalog_status.nc"

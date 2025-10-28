@@ -16,10 +16,12 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+import rasterio
 import shapely
 import xarray as xr
-import rasterio
 from scipy import sparse
+
+LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
 
 
 def set_logger(level="INFO"):
@@ -256,84 +258,6 @@ def create_domain_grid(
     return grid
 
 
-@dataclass
-class GRAMM:
-    """
-    All constants related to the GRAMM domain.
-
-    Parameters
-    ----------
-    nx : int
-        Number of cells in x-direction.
-    ny : int
-        Number of cells in y-direction.
-    nz : int
-        Number of cells in z-direction.
-    dx
-        Cell width in x-direction in [m].
-    dy
-        Cell width in y-direction in [m].
-    xmin
-        x-coordinate of the left-lower (south-west) corner of the GRAMM domain in
-        Gauß-Krueger coordinates.
-    ymin
-        y-coordinate of the left-lower (south-west) corner of the GRAMM domain in
-        Gauß-Krueger coordinates.
-    """
-
-    nx: int = 200
-    ny: int = 201
-    nz: int = 22
-    xmin: int = 3466700
-    ymin: int = 5465000
-    xmax: int = 3486700
-    ymax: int = 5485000
-    dx: float = (xmax - xmin) / nx
-    dy: float = (ymax - ymin) / ny
-    xmesh, ymesh = np.meshgrid(xmin + dx * np.arange(nx), ymin + dy * np.arange(ny))
-    xcmesh, ycmesh = np.meshgrid(
-        xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
-    )
-
-
-@dataclass
-class GRAL:
-    """
-    All constants related to the GRAL domain.
-
-    Parameters
-    ----------
-    nx : int
-        Number of cells in x-direction.
-    ny : int
-        Number of cells in y-direction.
-    nz : int
-        Number of cells in z-direction.
-    dx
-        Cell width in x-direction in [m].
-    dy
-        Cell width in y-direction in [m].
-    xmin
-        x-coordinate of the left-lower (south-west) corner of the GRAL domain in
-        Gauß-Krueger coordinates.
-    ymin
-        y-coordinate of the left-lower (south-west) corner of the GRAL domain in
-        Gauß-Krueger coordinates.
-    """
-
-    nx: int = 1227
-    ny: int = 1232
-    nz: int = 400
-    dx: float = 10.0
-    dy: float = 10.0
-    xmin: int = 3471259
-    ymin: int = 5468979
-    xmesh, ymesh = np.meshgrid(xmin + dx * np.arange(nx), ymin + dy * np.arange(ny))
-    xcmesh, ycmesh = np.meshgrid(
-        xmin + dx * np.arange(nx + 1), ymin + dy * np.arange(ny + 1)
-    )
-
-
 def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
     with (gral_geb_path).open("r") as f:
         lines = f.readlines()
@@ -365,9 +289,6 @@ def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
         "vertical_grid_spacing_concentration": float(lines[10]),
     }
     return config
-
-
-LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
 
 
 def read_landuse(path, shape):
@@ -434,7 +355,7 @@ def read_gramm_windfield(path):
     return info, wind_u, wind_v, wind_w
 
 
-def read_buildings(path, GRAL=GRAL):
+def read_buildings(path, GRAL):
     data = np.genfromtxt(path, delimiter=",")
 
     buildings = np.zeros((GRAL.nx, GRAL.ny))
@@ -574,7 +495,7 @@ def read_gral_windfield(path, as_xarray=False, config=None):
         return wind
 
 
-def read_con_file(path, GRAL=GRAL):
+def read_con_file(path, GRAL ):
     with path.open("rb") as f:
         data = f.read()
 
@@ -596,7 +517,7 @@ def read_con_file(path, GRAL=GRAL):
     return con
 
 
-def con_file_as_sparse_matrix(path, GRAL=GRAL):
+def con_file_as_sparse_matrix(path, GRAL ):
     con = read_con_file(path, GRAL)
     return sparse.csr_matrix(con)
 

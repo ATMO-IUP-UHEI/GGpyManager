@@ -341,7 +341,7 @@ def create_ggeom_dataset(
             lower_points + cell_height[idz] * relative_column_height
         )
 
-    geom["Z"] = (["z_stag"], np.append([min_elevation], np.cumsum(cell_height)))
+    geom["Z"] = (["z_stag"], np.append([0], np.cumsum(cell_height)) + min_elevation)
     logging.info(
         f"Elevation minimum {min_elevation:.2f} m and maximum {max_elevation:.2f} m."
     )
@@ -514,7 +514,7 @@ def write_ggeom_file(geom: xr.Dataset, file_path: Union[Path, str]) -> None:
         file.write(line + "\n")
 
 
-def read_ggeom_file(file_path: str) -> xr.Dataset:
+def read_ggeom_file(file_path: str | Path) -> xr.Dataset:
     """
     Reads a ggeom.asc file and returns an xarray Dataset with the parsed geometry.
 

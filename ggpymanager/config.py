@@ -1,6 +1,6 @@
 CONFIG_PATH = "config/"
 """Path to the configuration directory for a GRAMM or GRAL model run."""
-SIMUATION_PATH = "simulations/"
+SIMULATION_PATH = "simulations/"
 """Path to the simulations directory for a GRAMM or GRAL model run."""
 CATALOG_ENTRY_PATH_FORMATTER = "sim_{sim_id:04}/"
 """Formatter for the path to a specific simulation entry in the catalog."""
@@ -11,7 +11,7 @@ STD_OUT_STRING_FOR_COMPLETED_SIMULATION = {
     "gramm": "0:  MMAIN : OUT 00001.wnd  00001.scl",
     "gral": "",
 }
-"""Standard output string indicating a completed simulation for GRAMM and GRAL models."""
+"""Standard output string indicating a completed simulation for GRAMM and GRAL."""
 INPUT_FILES = {
     "gramm": [
         "meteopgt.all",

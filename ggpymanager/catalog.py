@@ -1,25 +1,38 @@
-"""Modul to manage the GRAMM/GRAL catalog.
+"""Module to manage the GRAMM/GRAL catalog.
 
-The modul checks consistency of the simulations and can create a list of simulations
+The module checks consistency of the simulations and can create a list of simulations
 which can be started to efficiently use the available computation power.
 """
 
 import logging
-import time
-from multiprocessing import Pool
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import xarray as xr
 from tqdm import tqdm
-from datetime import datetime
 
 import ggpymanager.config as CONFIG
 from ggpymanager import utils
 
 
 class Catalog:
+    """Catalog manager for GRAMM/GRAL simulations.
+    
+    Parameters
+    ----------
+    catalog_path : str | Path
+        Path to the catalog directory.
+    model : Literal["gramm", "gral"]
+        Model type, either "gramm" or "gral".
+        
+    Raises
+    ------
+    ValueError
+        If model is not "gramm" or "gral".
+    """
+    
     def __init__(self, catalog_path: str | Path, model: Literal["gramm", "gral"]):
         if model not in ["gramm", "gral"]:
             raise ValueError(f"Model must be 'gramm' or 'gral', got {model}")
@@ -31,25 +44,27 @@ class Catalog:
 
         self._check_status_log()
 
-    def _check_input_files(self):
+    def _check_input_files(self) -> None:
+        """Check if all required input files are present in the config directory."""
         self.config_path = self.catalog_path / CONFIG.CONFIG_PATH
         logging.info(f"Checking input files in directory {self.config_path}")
         self.input_files = CONFIG.INPUT_FILES[self.model]
         missing_files = []
-        for file in self.input_files:
+        for file in tqdm(self.input_files):
             file_path = self.config_path / file
             if not file_path.exists():
                 missing_files.append(file)
         if missing_files:
-            logging.info(
+            logging.warning(
                 "The following input files are missing in "
                 f"{self.config_path}: {missing_files}"
             )
         else:
             logging.info("All required input files are present.")
 
-    def _check_simulations(self):
-        self.simulation_path = self.catalog_path / CONFIG.SIMUATION_PATH
+    def _check_simulations(self) -> None:
+        """Scan simulation directory and count completed simulations and wind files."""
+        self.simulation_path = self.catalog_path / CONFIG.SIMULATION_PATH
         logging.info(f"Checking simulations in directory {self.simulation_path}")
 
         if not self.simulation_path.exists():
@@ -90,7 +105,18 @@ class Catalog:
         logging.info(f"{self.n_wind_files} simulations have computed wind fields.")
 
     def _is_simulation_completed(self, sim_dir: Path) -> bool:
-        """Check if a simulation is marked as completed based on stdout file."""
+        """Check if a simulation is marked as completed based on stdout file.
+        
+        Parameters
+        ----------
+        sim_dir : Path
+            Path to the simulation directory.
+            
+        Returns
+        -------
+        bool
+            True if the simulation is completed, False otherwise.
+        """
         stdout_file = sim_dir / CONFIG.STD_OUT_FILE_NAME[self.model]
         if not stdout_file.exists():
             return False
@@ -106,7 +132,8 @@ class Catalog:
             logging.warning(f"Error reading stdout file {stdout_file}: {e}")
             return False
 
-    def _check_status_log(self):
+    def _check_status_log(self) -> None:
+        """Check for existing status log or create a new one."""
         self.status_log_path = self.catalog_path / CONFIG.STATUS_LOG_FILE_NAME
         if self.status_log_path.exists():
             logging.info(f"Status log found at {self.status_log_path}")
@@ -118,17 +145,32 @@ class Catalog:
             logging.info(f"Status log created at {self.status_log_path}")
 
     def _get_summary(self) -> dict:
+        """Parse stdout files and extract summary data.
+        
+        Returns
+        -------
+        dict
+            Dictionary containing parsed log metadata for all simulations.
+        """
         stdout_files = [
             sim_dir / CONFIG.STD_OUT_FILE_NAME[self.model]
             for sim_dir in self.simulation_entries
         ]
-        logging.info("Parsing GRAMM stdout files for summary.")
+        logging.info(f"Parsing {self.model} stdout files for summary.")
         logs = []
         for file in tqdm(stdout_files):
             if file.exists():
-                logs.append(utils.read_gramm_stdout(str(file)))
+                logs.append(
+                    utils.read_gramm_stdout(str(file))
+                    if self.model == "gramm"
+                    else utils.read_gral_stdout(str(file))
+                )
             else:
-                logs.append(utils.GRALLogMetadata())
+                logs.append(
+                    utils.GRAMMLogMetadata()
+                    if self.model == "gramm"
+                    else utils.GRALLogMetadata()
+                )
 
         data = {}
         for log in logs:
@@ -139,6 +181,18 @@ class Catalog:
         return data
 
     def _create_status_log(self, data: dict) -> xr.Dataset:
+        """Create an xarray Dataset from parsed log data.
+        
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing parsed log metadata.
+            
+        Returns
+        -------
+        xr.Dataset
+            Dataset containing simulation status information.
+        """
         # Get maximum number of time steps across all simulations
         n_time_steps = 0
         for key in data.keys():
@@ -158,8 +212,10 @@ class Catalog:
             else:
                 ds[key] = (("sim_id",), values)
         ds.attrs = {
-            "title": "GRAMM simulation logs",
-            "description": "Parsed GRAMM log files from multiple simulations.",
+            "title": f"{self.model.capitalize()} simulation logs",
+            "description": (
+                f"Parsed {self.model.capitalize()} log files from multiple simulations."
+            ),
             "created_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "simulation_path": self.simulation_path.as_posix(),
             "model": self.model,

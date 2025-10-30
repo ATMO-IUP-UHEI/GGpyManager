@@ -47,7 +47,7 @@ class Catalog:
     def _check_input_files(self) -> None:
         """Check if all required input files are present in the config directory."""
         self.config_path = self.catalog_path / CONFIG.CONFIG_PATH
-        logging.info(f"Checking input files in directory {self.config_path}")
+        logging.info(f"Checking input files in directory: {self.config_path}")
         self.input_files = CONFIG.INPUT_FILES[self.model]
         missing_files = []
         for file in tqdm(self.input_files):
@@ -65,7 +65,7 @@ class Catalog:
     def _check_simulations(self) -> None:
         """Scan simulation directory and count completed simulations and wind files."""
         self.simulation_path = self.catalog_path / CONFIG.SIMULATION_PATH
-        logging.info(f"Checking simulations in directory {self.simulation_path}")
+        logging.info(f"Checking simulations in directory: {self.simulation_path}")
 
         if not self.simulation_path.exists():
             logging.warning(f"Simulation path does not exist: {self.simulation_path}")
@@ -194,7 +194,7 @@ class Catalog:
         disk_space = []
         for sim_dir in tqdm(self.simulation_entries):
             total_size = 0
-            for file_path in sim_dir.rglob("*"):
+            for file_path in tqdm(sim_dir.rglob("*")):
                 if file_path.is_file():
                     try:
                         total_size += file_path.stat().st_size

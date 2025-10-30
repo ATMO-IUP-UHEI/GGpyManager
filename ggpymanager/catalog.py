@@ -192,7 +192,7 @@ class Catalog:
             List of disk space in bytes for each simulation directory.
         """
         disk_space = []
-        for sim_dir in self.simulation_entries:
+        for sim_dir in tqdm(self.simulation_entries):
             total_size = 0
             for file_path in sim_dir.rglob("*"):
                 if file_path.is_file():

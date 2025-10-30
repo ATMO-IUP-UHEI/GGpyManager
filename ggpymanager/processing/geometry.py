@@ -1,26 +1,104 @@
-"""
-Module Name: read_gramm_geometry.py
+"""Domain geometry and grid creation utilities."""
 
-Description:
-    Convert to `ggeom.asc` file to an xarray dataset.
-
-
-Author:
-    Robert Maiwald
-    Institute of Environmental Physics, Heidelberg University, Germany
-
-Contact:
-    robert.maiwald@uni-heidelberg.de
-
-Date:
-    2025-01-23
-"""
-
-import numpy as np
-import xarray as xr
-from pathlib import Path
 import logging
-from typing import Union, Dict
+from typing import Any, Dict, Literal
+
+import geopandas as gpd
+import numpy as np
+import shapely.geometry
+import xarray as xr
+
+
+def create_domain_geometry(
+    name: Literal["gramm", "gral"], config: Dict[str, Any]
+) -> gpd.GeoDataFrame:
+    """Create a GeoDataFrame representing the domain area from configuration.
+
+    Parameters
+    ----------
+    name : Literal["gramm", "gral"]
+        Name of the domain, either "gramm" or "gral".
+    config : Dict[str, Any]
+        Configuration dictionary containing domain specifications with bbox
+        coordinates and CRS information.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        GeoDataFrame containing a single polygon geometry representing
+        the domain area.
+    """
+    domain_area = gpd.GeoDataFrame(
+        geometry=[shapely.geometry.box(*config["domain"][name]["bbox"].values())],
+        crs=config["domain"]["crs"],
+    )
+
+    return domain_area
+
+
+def create_domain_grid(
+    name: Literal["gramm", "gral"], config: Dict[str, Any]
+) -> xr.Dataset:
+    """Create a GRAMM model grid based on configuration parameters.
+
+    Parameters
+    ----------
+    name : Literal["gramm", "gral"]
+        Name of the domain, either "gramm" or "gral".
+    config : Dict[str, Any]
+        Configuration dictionary containing domain specifications including bbox,
+        grid spacing (dx, dy), and coordinate reference system.
+
+    Returns
+    -------
+    xr.Dataset
+        xarray Dataset containing grid coordinates and placeholder variables for
+        both regular and staggered grids.
+
+    Raises
+    ------
+    AssertionError
+        If bbox coordinates are invalid (x0 >= x1 or y0 >= y1).
+    """
+    minx = config["domain"][name]["bbox"]["x0"]
+    maxx = config["domain"][name]["bbox"]["x1"]
+    miny = config["domain"][name]["bbox"]["y0"]
+    maxy = config["domain"][name]["bbox"]["y1"]
+    assert minx < maxx, "Invalid bbox: x0 must be less than x1"
+    assert miny < maxy, "Invalid bbox: y0 must be less than y1"
+
+    dx = config["domain"][name]["dx"]
+    dy = config["domain"][name]["dy"]
+
+    logging.info(
+        f"Creating {name} grid with width {maxx - minx} m "
+        f"and height {maxy - miny} m"
+    )
+    # Create a grid for the domain
+    x_stag_coords = np.arange(minx, maxx + dx, dx)
+    y_stag_coords = np.arange(miny, maxy + dy, dy)
+    x_coords = x_stag_coords[:-1] + dx / 2
+    y_coords = y_stag_coords[:-1] + dy / 2
+    grid = xr.Dataset(
+        data_vars={
+            "grid_placeholder": (
+                ("y", "x"),
+                np.zeros((len(y_coords), len(x_coords))),
+            ),
+            "grid_placeholder_stag": (
+                ("y_stag", "x_stag"),
+                np.zeros((len(y_stag_coords), len(x_stag_coords))),
+            ),
+        },
+        coords={
+            "y": y_coords,
+            "x": x_coords,
+            "y_stag": y_stag_coords,
+            "x_stag": x_stag_coords,
+        },
+    )
+    grid = grid.rio.write_crs(config["domain"]["crs"])
+    return grid
 
 
 def gradient(elevation: xr.DataArray) -> xr.DataArray:
@@ -100,6 +178,87 @@ def smooth_elevation(
             method="nearest", dim=dim, fill_value="extrapolate"
         )
     return elevation
+
+
+def simpsons_rule(array: np.ndarray, axis: tuple[int]) -> np.ndarray:
+    """
+    Apply Simpson's rule for 2D integration on a 2x2 DataArray.
+
+    Parameters
+    ----------
+    array : np.ndarray
+        m x n x 2 x 2 array.
+
+    Returns
+    -------
+    np.ndarray
+        Result of Simpson's rule integration.
+    """
+    assert len(axis) == 2, "Not two axis in reduce function."
+    assert array.shape[axis[0]] == 2, "Shape of first axis is not 2."
+    assert array.shape[axis[1]] == 2, "Shape of second axis is not 2."
+    assert len(array.shape) == 5, "Shape of array is not (nz, ny, nx, 2, 2)"
+    # Apply Simpson's rule
+    weights = np.array([[2, 1], [1, 2]]).reshape((1, 1, 1, 2, 2))
+    reduced = np.sum(weights * array, axis=axis) / 6
+    assert reduced.shape == (array.shape[0], array.shape[1], array.shape[2]), (
+        f"Reduced shape {reduced.shape} is not "
+        f"(nz, ny, nx) = {(array.shape[0], array.shape[1], array.shape[2])}"
+    )
+    return reduced
+
+
+def interp_stag_dim(da: xr.DataArray, how_dict: Dict[str, str]) -> xr.DataArray:
+    """
+    Interpolate staggered dimensions in a DataArray.
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        Input data array with staggered dimensions.
+    how_dict : Dict[str, str]
+        Dictionary mapping dimension names to interpolation methods.
+        Valid dimensions: 'z_stag', 'y_stag', 'x_stag', 'yx_stag'.
+        Valid methods: 'diff', 'mean', 'simpsons'.
+
+    Returns
+    -------
+    xr.DataArray
+        Interpolated data array.
+    """
+    for dim, how in how_dict.items():
+        assert dim in [
+            "z_stag",
+            "y_stag",
+            "x_stag",
+            "yx_stag",
+        ], f"{dim} is not in [z_stag, y_stag, x_stag, yx_stag]"
+        assert (dim != "yx_stag") or (
+            how == "simpsons"
+        ), "yx_stag can only be used with how='simpsons'."
+        assert how in [
+            "diff",
+            "mean",
+            "simpsons",
+        ], f"{how} is not in [diff, mean, simpsons]"
+        if how == "diff":
+            da = da.diff(dim)
+            if dim in da.coords:
+                da = da.drop_vars(dim)
+            da = da.rename({dim: dim[0]})
+        elif how == "mean":
+            da = da.rolling({dim: 2}).mean().dropna(dim)
+            if dim in da.coords:
+                da = da.drop_vars(dim)
+            da = da.rename({dim: dim[0]})
+        elif how == "simpsons":
+            da = da.rolling({"y_stag": 2, "x_stag": 2}).reduce(simpsons_rule)
+            da = da.isel(y_stag=slice(1, None), x_stag=slice(1, None))
+            for dim in ["y_stag", "x_stag"]:
+                if dim in da.coords:
+                    da = da.drop_vars(dim)
+                da = da.rename({dim: dim[0]})
+    return da
 
 
 def create_geometry_variable_specs(nx: int, ny: int, nz: int) -> dict:
@@ -184,70 +343,6 @@ def test_dataset(geom: xr.Dataset, nx: int, ny: int, nz: int) -> None:
 
         dims = geom[var].dims
         assert dims == specs[2], f"{var} dims is {dims} instead of {specs[2]}"
-
-
-def simpsons_rule(array: np.ndarray, axis: tuple[int]) -> np.ndarray:
-    """
-    Apply Simpson's rule for 2D integration on a 2x2 DataArray.
-
-    Parameters
-    ----------
-    array : np.ndarray
-        m x n x 2 x 2 array.
-
-    Returns
-    -------
-    np.ndarray
-        Result of Simpson's rule integration.
-    """
-    assert len(axis) == 2, "Not two axis in reduce function."
-    assert array.shape[axis[0]] == 2, "Shape of first axis is not 2."
-    assert array.shape[axis[1]] == 2, "Shape of second axis is not 2."
-    assert len(array.shape) == 5, "Shape of array is not (nz, ny, nx, 2, 2)"
-    # Apply Simpson's rule
-    weights = np.array([[2, 1], [1, 2]]).reshape((1, 1, 1, 2, 2))
-    reduced = np.sum(weights * array, axis=axis) / 6
-    assert reduced.shape == (array.shape[0], array.shape[1], array.shape[2]), (
-        f"Reduced shape {reduced.shape} is not "
-        f"(nz, ny, nx) = {(array.shape[0], array.shape[1], array.shape[2])}"
-    )
-    return reduced
-
-
-def interp_stag_dim(da: xr.DataArray, how_dict: Dict[str, str]) -> xr.DataArray:
-    for dim, how in how_dict.items():
-        assert dim in [
-            "z_stag",
-            "y_stag",
-            "x_stag",
-            "yx_stag",
-        ], f"{dim} is not in [z_stag, y_stag, x_stag, yx_stag]"
-        assert (dim != "yx_stag") or (
-            how == "simpsons"
-        ), "yx_stag can only be used with how='simpsons'."
-        assert how in [
-            "diff",
-            "mean",
-            "simpsons",
-        ], f"{how} is not in [diff, mean, simpsons]"
-        if how == "diff":
-            da = da.diff(dim)
-            if dim in da.coords:
-                da = da.drop_vars(dim)
-            da = da.rename({dim: dim[0]})
-        elif how == "mean":
-            da = da.rolling({dim: 2}).mean().dropna(dim)
-            if dim in da.coords:
-                da = da.drop_vars(dim)
-            da = da.rename({dim: dim[0]})
-        elif how == "simpsons":
-            da = da.rolling({"y_stag": 2, "x_stag": 2}).reduce(simpsons_rule)
-            da = da.isel(y_stag=slice(1, None), x_stag=slice(1, None))
-            for dim in ["y_stag", "x_stag"]:
-                if dim in da.coords:
-                    da = da.drop_vars(dim)
-                da = da.rename({dim: dim[0]})
-    return da
 
 
 def create_ggeom_dataset(
@@ -350,29 +445,18 @@ def create_ggeom_dataset(
     geom["AH"] = elevation
 
     # AREAX calculation (x-faces)
-    # areax = (
-    #     geom["AHE"].diff("z_stag").rolling({"y_stag": 2}).mean().dropna("y_stag") * dy
-    # )
     areax = interp_stag_dim(geom["AHE"], {"z_stag": "diff", "y_stag": "mean"}) * dy
-    # geom["AREAX"] = (["z", "y", "x_stag"], areax)
-    # areax = areax.rename(z_stag="z", y_stag="y")
     geom["AREAX"] = areax
 
     # AREAY calculation (y-faces)
-    # areay = geom["AHE"].diff("z_stag").rolling({"x_stag": 2}).mean() * dx
-    # areay = areay.rename(z_stag="z", x_stag="x")
     areay = interp_stag_dim(geom["AHE"], {"z_stag": "diff", "x_stag": "mean"}) * dx
     geom["AREAY"] = areay
 
     # AREAZX calculation (z-faces projected on x-faces)
-    # areazx = geom["AHE"].diff("x_stag").rolling({"y_stag": 2}).mean() * dy
-    # areazx = areazx.rename(y_stag="y", x_stag="x")
     areazx = interp_stag_dim(geom["AHE"], {"x_stag": "diff", "y_stag": "mean"}) * dy
     geom["AREAZX"] = areazx
 
     # AREAZY calculation (z-faces projected on y-faces)
-    # areazy = geom["AHE"].diff("y_stag").rolling({"x_stag": 2}).mean() * dx
-    # areazy = areazy.rename(y_stag="y", x_stag="x")
     areazy = interp_stag_dim(geom["AHE"], {"y_stag": "diff", "x_stag": "mean"}) * dx
     geom["AREAZY"] = areazy
 
@@ -387,12 +471,9 @@ def create_ggeom_dataset(
         * dx
         * dy
     )
-    # vol = vol.rename(z_stag="z", y_stag="y", x_stag="x")
     geom["VOL"] = vol
 
     # Calculate the height of the centre point of each grid cell
-    # zsp = geom["AHE"].rolling({"z_stag": 2, "y_stag": 2, "x_stag": 2}).mean()
-    # zsp = zsp.rename(z_stag="z", y_stag="y", x_stag="x")
     zsp = interp_stag_dim(
         geom["AHE"], {"z_stag": "mean", "y_stag": "mean", "x_stag": "mean"}
     )
@@ -408,204 +489,3 @@ def create_ggeom_dataset(
     geom = geom[keys]
     test_dataset(geom, nx, ny, nz)
     return geom
-
-
-def num_to_str(num: float) -> str:
-    """
-    Convert a number to a string with trailing zeros removed.
-
-    Parameters
-    ----------
-    num : float
-        Number to convert.
-
-    Returns
-    -------
-    str
-        String representation with trailing zeros removed.
-    """
-    return format(num, ".2f").rstrip("0").rstrip(".")
-
-
-def data_to_str(data: Union[np.ndarray, xr.DataArray]) -> str:
-    """
-    Convert an array to a string.
-
-    Parameters
-    ----------
-    array : array_like
-        Array to convert to a string.
-
-    Returns
-    -------
-    str
-        String representation of the array.
-    """
-    array = np.array(data)
-    return " ".join([num_to_str(num) for num in array.ravel()])
-
-
-def write_ggeom_file(geom: xr.Dataset, file_path: Union[Path, str]) -> None:
-    """
-    Write a GRAMM geometry dataset to a ggeom.asc file.
-
-    Parameters
-    ----------
-    geom : xr.Dataset
-        Geometry dataset to write.
-    file_path : Path | str
-        Path where to write the file.
-
-    Raises
-    ------
-    AssertionError
-        If file already exists or dataset validation fails.
-    """
-    logging.info(f"Writing ggeom.asc file for GRAMM to {file_path}.")
-    assert not Path(file_path).exists(), f"File path {file_path} already exists."
-    test_dataset(geom, int(geom["NX"]), int(geom["NY"]), int(geom["NZ"]))
-    with open(file_path, "w") as file:
-        line = f"{int(geom["NX"])} {int(geom["NY"])} {int(geom["NZ"])} "
-        line += data_to_str(geom["X"]) + " "
-        line += data_to_str(geom["Y"]) + " "
-        line += data_to_str(geom["Z"]) + " "
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AH"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["VOL"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AREAX"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AREAY"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AREAZX"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AREAZY"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AREAZ"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["ZSP"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["DDX"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["DDY"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["ZAX"])
-        file.write(line + "\n")
-
-        line = data_to_str(geom["ZAY"])
-        file.write(line + "\n")
-
-        line = f"{int(geom["IKOOA"])} {int(geom["JKOOA"])} {int(geom["WINKEL"])}"
-        file.write(line + "\n")
-
-        line = data_to_str(geom["AHE"])
-        file.write(line + "\n")
-
-
-def read_ggeom_file(file_path: str | Path) -> xr.Dataset:
-    """
-    Reads a ggeom.asc file and returns an xarray Dataset with the parsed geometry.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to ggeom.asc file.
-
-    Returns
-    -------
-    xarray.Dataset
-        Dataset containing arrays for Nx, Ny, Nz, and geometry fields.
-    """
-    with open(file_path, "r") as f:
-        tokens = f.read().split()
-
-    # Parse header
-    nx, ny, nz = map(int, tokens[:3])
-
-    variable_sizes_types_dimensions = create_geometry_variable_specs(nx, ny, nz)
-
-    vars = {}
-    idx = 0
-    for var, (size, dtype, _) in variable_sizes_types_dimensions.items():
-        vars[var] = np.array(tokens[idx : (idx + size)], dtype=dtype)
-        idx += size
-
-    dimensions = {
-        "x": nx,
-        "y": ny,
-        "z": nz,
-        "x_stag": nx + 1,
-        "y_stag": ny + 1,
-        "z_stag": nz + 1,
-        "": None,
-    }
-    ds = xr.Dataset(
-        {
-            var: (dims, vars[var].reshape([dimensions[dim] for dim in dims]))
-            for var, (_, _, dims) in variable_sizes_types_dimensions.items()
-        },
-        coords={
-            "x": vars["X"][:-1] + vars["DDX"] / 2,
-            "x_stag": vars["X"],
-            "y": vars["Y"][:-1] + vars["DDY"] / 2,
-            "y_stag": vars["Y"],
-        },
-    )
-    # Add attributes to data_vars
-    variable_long_names_units = {
-        "NX": ("number of cells in x-direction", ""),
-        "NY": ("number of cells in y-direction", ""),
-        "NZ": ("number of cells in z-direction", ""),
-        "X": ("Distance of grid cell centre from eastern domain border", "m"),
-        "Y": ("Distance of grid cell centre from southern domain border", "m"),
-        "Z": ("Temporary array for generating the terrain-following grid", "m"),
-        "AH": ("Height of the surface", "m"),
-        "VOL": ("Volume of grid cells", "m^3"),
-        "AREAX": ("Area of the grid cell in x-direction", "m^2"),
-        "AREAY": ("Area of the grid cell in y-direction", "m^2"),
-        "AREAZX": (
-            "Projection of the ground area of the grid cell in x-direction",
-            "m^2",
-        ),
-        "AREAZY": (
-            "Projection of the ground area of the grid cell in y-direction",
-            "m^2",
-        ),
-        "AREAZ": ("Bottom area of the grid cell", "m^2"),
-        "ZSP": ("Height of the centre point of each grid cell", "m"),
-        "DDX": ("Horizontal grid size in x-direction", "m"),
-        "DDY": ("Horizontal grid size in y-direction", "m"),
-        "ZAX": ("Distance between neighbouring grid cells in x-direction", "m"),
-        "ZAY": ("Distance between neighbouring grid cells in y-direction", "m"),
-        "IKOOA": ("Western border of model domain", "m"),
-        "JKOOA": ("Southern border of model domain", "m"),
-        "WINKEL": ("... (not used anymore)", ""),
-        "AHE": ("Heights of the corner points of each grid cell", "m"),
-    }
-
-    for var, (long_name, units) in variable_long_names_units.items():
-        ds[var].attrs["long_name"] = long_name
-        ds[var].attrs["units"] = units
-
-    return ds
-
-
-def main() -> None:
-    """Main function."""
-    print(__doc__)
-
-
-if __name__ == "__main__":
-    main()

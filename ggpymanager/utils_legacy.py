@@ -309,7 +309,21 @@ def write_landuse(path, landuse_data: xr.Dataset):
             f.write(line + "\n")
 
 
-def read_topography(path):
+def read_topography(path, GRAMM):
+    """Read GRAMM topography file.
+    
+    Parameters
+    ----------
+    path : str | Path
+        Path to the topography file.
+    GRAMM : object
+        GRAMM configuration object with nx, ny, nz attributes.
+        
+    Returns
+    -------
+    tuple[np.ndarray, np.ndarray]
+        Topography data and z-grid data.
+    """
     f = open(path, "r")
     data = f.readlines()
     f.close()
@@ -495,7 +509,7 @@ def read_gral_windfield(path, as_xarray=False, config=None):
         return wind
 
 
-def read_con_file(path, GRAL ):
+def read_con_file(path, GRAL):
     with path.open("rb") as f:
         data = f.read()
 
@@ -517,7 +531,7 @@ def read_con_file(path, GRAL ):
     return con
 
 
-def con_file_as_sparse_matrix(path, GRAL ):
+def con_file_as_sparse_matrix(path, GRAL):
     con = read_con_file(path, GRAL)
     return sparse.csr_matrix(con)
 

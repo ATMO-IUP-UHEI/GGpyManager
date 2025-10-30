@@ -11,14 +11,14 @@ def parse_emission_data(
     l_iter: Iterator[str], has_parentheses: bool = False
 ) -> tuple[int, float]:
     """Parse emission data from log file lines.
-    
+
     Parameters
     ----------
     l_iter : Iterator[str]
         Iterator over log file lines.
     has_parentheses : bool, optional
         Whether the emission count contains parentheses. Default is False.
-        
+
     Returns
     -------
     tuple[int, float]
@@ -38,12 +38,12 @@ def parse_emission_data(
 
 def parse_meteo_data(line: str) -> dict[str, float]:
     """Parse meteorological data from a log file line.
-    
+
     Parameters
     ----------
     line : str
         Log file line containing meteorological data.
-        
+
     Returns
     -------
     dict[str, float]
@@ -59,12 +59,12 @@ def parse_meteo_data(line: str) -> dict[str, float]:
 
 def filter_lines(raw_lines: list[str]) -> list[str]:
     """Filter and clean raw log file lines.
-    
+
     Parameters
     ----------
     raw_lines : list[str]
         Raw lines from log file.
-        
+
     Returns
     -------
     list[str]
@@ -81,12 +81,12 @@ def filter_lines(raw_lines: list[str]) -> list[str]:
 
 def read_gral_stdout(path: str) -> GRALLogMetadata:
     """Read and parse GRAL log file.
-    
+
     Parameters
     ----------
     path : str
         Path to the GRAL log file.
-        
+
     Returns
     -------
     GRALLogMetadata
@@ -137,14 +137,14 @@ def read_gral_stdout(path: str) -> GRALLogMetadata:
 
                 case _ if "Reading file line.dat" in l:
                     lm.line_emissions_read = True
-                    lm.n_line_emissions, lm.total_line_emissions = (
-                        parse_emission_data(l_iter, has_parentheses=True)
+                    lm.n_line_emissions, lm.total_line_emissions = parse_emission_data(
+                        l_iter, has_parentheses=True
                     )
 
                 case _ if "Reading file cadastre.dat" in l:
                     lm.area_emissions_read = True
-                    lm.n_area_emissions, lm.total_area_emissions = (
-                        parse_emission_data(l_iter, has_parentheses=False)
+                    lm.n_area_emissions, lm.total_area_emissions = parse_emission_data(
+                        l_iter, has_parentheses=False
                     )
 
                 case _ if "ADVECTION" in l:
@@ -187,12 +187,12 @@ def read_gral_stdout(path: str) -> GRALLogMetadata:
 
 def read_gramm_stdout(path: str) -> GRAMMLogMetadata:
     """Read and parse GRAMM log file.
-    
+
     Parameters
     ----------
     path : str
         Path to the GRAMM log file.
-        
+
     Returns
     -------
     GRAMMLogMetadata
@@ -243,9 +243,7 @@ def read_gramm_stdout(path: str) -> GRAMMLogMetadata:
                     lm.roughness_length = float(l.split(":")[1].rstrip("m"))
 
                 case _ if "Boundary-Layer height" in l:
-                    lm.init_boundary_layer_height = float(
-                        l.split(":")[1].rstrip("m")
-                    )
+                    lm.init_boundary_layer_height = float(l.split(":")[1].rstrip("m"))
 
                 case _ if "Friction velocity" in l:
                     lm.friction_velocity = float(l.split(":")[1].rstrip("m/s"))

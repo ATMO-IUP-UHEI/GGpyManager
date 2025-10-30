@@ -311,14 +311,14 @@ def write_landuse(path, landuse_data: xr.Dataset):
 
 def read_topography(path, GRAMM):
     """Read GRAMM topography file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the topography file.
     GRAMM : object
         GRAMM configuration object with nx, ny, nz attributes.
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray]

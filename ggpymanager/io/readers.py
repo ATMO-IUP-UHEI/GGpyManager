@@ -17,14 +17,14 @@ LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
 
 def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
     """Read GRAL configuration from .geb and .dat files.
-    
+
     Parameters
     ----------
     gral_geb_path : Path
         Path to the GRAL.geb file.
     in_dat_path : Path
         Path to the in.dat file.
-        
+
     Returns
     -------
     dict
@@ -64,14 +64,14 @@ def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
 
 def read_landuse(path: str | Path, shape: tuple[int, int]) -> dict[str, np.ndarray]:
     """Read GRAMM landuse file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the landuse file.
     shape : tuple[int, int]
         Shape of the landuse grid (nx, ny).
-        
+
     Returns
     -------
     dict[str, np.ndarray]
@@ -88,14 +88,14 @@ def read_landuse(path: str | Path, shape: tuple[int, int]) -> dict[str, np.ndarr
 
 def read_topography(path: str | Path, GRAMM: Any) -> tuple[np.ndarray, np.ndarray]:
     """Read GRAMM topography file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the topography file.
     GRAMM : object
         GRAMM configuration object with nx, ny, nz attributes.
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray]
@@ -129,12 +129,12 @@ def read_gramm_windfield(
     path: Path,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAMM wind field file.
-    
+
     Parameters
     ----------
     path : Path
         Path to the GRAMM wind field file (.wnd).
-        
+
     Returns
     -------
     tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
@@ -160,14 +160,14 @@ def read_gramm_windfield(
 
 def read_buildings(path: str | Path, GRAL: Any) -> np.ndarray:
     """Read GRAL buildings file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the buildings.dat file.
     GRAL : object
         GRAL configuration object with nx, ny, dx, dy, xmin, ymin attributes.
-        
+
     Returns
     -------
     np.ndarray
@@ -191,7 +191,7 @@ def read_gral_geometries(
     path: str | Path,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAL geometry data from a binary file.
-    
+
     Returns surface elevation (ahk), surface index (kkart),
     building height (bui_height), and orography (oro).
 
@@ -245,7 +245,7 @@ def read_gral_windfield(
     path: Path, as_xarray: bool = False, config: dict | None = None
 ) -> xr.Dataset | tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAL wind field file (.gff).
-    
+
     Parameters
     ----------
     path : Path
@@ -254,13 +254,13 @@ def read_gral_windfield(
         If True, return as xarray Dataset. Default is False.
     config : dict | None, optional
         GRAL configuration dictionary, required if as_xarray is True.
-        
+
     Returns
     -------
     xr.Dataset | tuple[np.ndarray, np.ndarray, np.ndarray]
         If as_xarray is True, returns Dataset with wind components.
         Otherwise, returns tuple of (ux, vy, wz) arrays.
-        
+
     Raises
     ------
     ValueError
@@ -293,22 +293,14 @@ def read_gral_windfield(
     ux = data[:-1, :-1, 1:, 0].astype(np.float32) * 0.01
     vy = data[:-1, :-1, 1:, 1].astype(np.float32) * 0.01
     wz = data[:-1, :-1, 1:, 2].astype(np.float32) * 0.01
-    
+
     if not as_xarray:
         return ux, vy, wz
     else:
         if config is None:
             raise ValueError("Config must be provided when as_xarray is True.")
-        x = (
-            np.arange(0, nx) * config["dx"]
-            + config["west_border"]
-            + config["dx"] / 2
-        )
-        y = (
-            np.arange(0, ny) * config["dy"]
-            + config["south_border"]
-            + config["dy"] / 2
-        )
+        x = np.arange(0, nx) * config["dx"] + config["west_border"] + config["dx"] / 2
+        y = np.arange(0, ny) * config["dy"] + config["south_border"] + config["dy"] / 2
 
         z_ids = np.zeros(nz)
         z_ids[1:] = np.arange(0, nz - 1)
@@ -339,14 +331,14 @@ def read_gral_windfield(
 
 def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
     """Read GRAL concentration file.
-    
+
     Parameters
     ----------
     path : Path
         Path to the concentration file.
     GRAL : object
         GRAL configuration object with nx, ny, dx, dy, xmin, ymin attributes.
-        
+
     Returns
     -------
     np.ndarray | None
@@ -375,14 +367,14 @@ def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
 
 def con_file_as_sparse_matrix(path: Path, GRAL: Any) -> sparse.csr_matrix:
     """Read GRAL concentration file as sparse matrix.
-    
+
     Parameters
     ----------
     path : Path
         Path to the concentration file.
     GRAL : object
         GRAL configuration object with nx, ny, dx, dy, xmin, ymin attributes.
-        
+
     Returns
     -------
     sparse.csr_matrix
@@ -394,12 +386,12 @@ def con_file_as_sparse_matrix(path: Path, GRAL: Any) -> sparse.csr_matrix:
 
 def read_gral_concentration(path: str | Path) -> dict[str, np.ndarray]:
     """Read GRAL concentration from .npz file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the .npz file containing concentration data.
-        
+
     Returns
     -------
     dict[str, np.ndarray]
@@ -415,7 +407,7 @@ def read_gral_concentration(path: str | Path) -> dict[str, np.ndarray]:
 
 def read_esri_ascii(path: str | Path) -> tuple[np.ndarray, dict]:
     """Read an ESRI ASCII raster file.
-    
+
     Returns the data as a numpy array and metadata.
 
     Parameters
@@ -444,7 +436,7 @@ def read_esri_ascii(path: str | Path) -> tuple[np.ndarray, dict]:
 
 def load_corine_lookup_table() -> pd.DataFrame:
     """Load CORINE land cover lookup table.
-    
+
     Returns
     -------
     pd.DataFrame
@@ -460,7 +452,7 @@ def load_corine_lookup_table() -> pd.DataFrame:
 
 def load_catalog_filter() -> pd.DataFrame:
     """Load catalog filter for stability class selection.
-    
+
     Returns
     -------
     pd.DataFrame

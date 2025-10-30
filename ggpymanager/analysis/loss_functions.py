@@ -15,7 +15,7 @@ from ggpymanager.processing.wind import (
 @check_docstring_dims
 def rmse_loss(u, v, u_model, v_model):
     """Compute RMSE loss between measured and modeled wind fields.
-    
+
     Input for N hours, S stations, and M catalog entries.
 
     Parameters
@@ -40,7 +40,7 @@ def rmse_loss(u, v, u_model, v_model):
 @check_docstring_dims
 def regularized_loss(u, v, u_model, v_model):
     """Compute regularized loss with temporal and spatial weighting.
-    
+
     Input for N hours, S stations, and M catalog entries.
 
     Loss function based on: Berchet, Antoine, Katrin Zink, Clive Muller,
@@ -96,7 +96,7 @@ def regularized_loss(u, v, u_model, v_model):
 @check_docstring_dims
 def compound_loss(u, v, u_model, v_model, lambda_=0.7):
     """Compute compound loss combining direction and speed differences.
-    
+
     Input for N hours, S stations, and M catalog entries.
 
     Parameters
@@ -152,7 +152,7 @@ def compute_matching_loss(
     stab_class_catalog=None,
 ):
     """Compute matching loss between observations and model catalog.
-    
+
     Input for N hours, S stations, and M catalog entries.
 
     Parameters

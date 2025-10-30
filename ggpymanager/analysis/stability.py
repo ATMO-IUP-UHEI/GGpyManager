@@ -12,7 +12,7 @@ from ggpymanager.io.readers import load_catalog_filter
 @check_docstring_dims
 def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
     """Get allowed stability classes based on radiation and wind speed.
-    
+
     Filters simulation catalog entries based on atmospheric stability class
     compatibility with observed meteorological conditions.
 

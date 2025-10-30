@@ -13,7 +13,7 @@ LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
 
 def write_landuse(path: str | Path, landuse_data: xr.Dataset) -> None:
     """Write GRAMM landuse file.
-    
+
     Parameters
     ----------
     path : str | Path
@@ -30,7 +30,7 @@ def write_landuse(path: str | Path, landuse_data: xr.Dataset) -> None:
 
 def write_buildings_file(path: str | Path, building_height: xr.DataArray) -> None:
     """Write GRAL buildings file.
-    
+
     Parameters
     ----------
     path : str | Path
@@ -48,14 +48,14 @@ def write_buildings_file(path: str | Path, building_height: xr.DataArray) -> Non
 
 def write_esri_ascii(path: str | Path, data: xr.DataArray) -> None:
     """Write an ESRI ASCII raster file.
-    
+
     Parameters
     ----------
     path : str | Path
         Path to the output ESRI ASCII file.
     data : xr.DataArray
         2D DataArray to write.
-        
+
     Raises
     ------
     FileExistsError
@@ -98,7 +98,7 @@ def write_point_dat(
     source_group: np.ndarray,
 ) -> None:
     """Write GRAL point emissions file.
-    
+
     Parameters
     ----------
     path : str | Path
@@ -119,7 +119,7 @@ def write_point_dat(
         Exit temperature in K.
     source_group : np.ndarray
         Source group indices (1-based).
-        
+
     Raises
     ------
     FileExistsError
@@ -191,7 +191,7 @@ def write_cadastre_dat(
     source_group: np.ndarray,
 ) -> None:
     """Write GRAL cadastre (area source) emissions file.
-    
+
     Parameters
     ----------
     path : str | Path
@@ -212,7 +212,7 @@ def write_cadastre_dat(
         Emission flux in kg/h.
     source_group : np.ndarray
         Source group indices (1-based).
-        
+
     Raises
     ------
     FileExistsError

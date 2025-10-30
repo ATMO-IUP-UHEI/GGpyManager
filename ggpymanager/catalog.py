@@ -5,6 +5,7 @@ which can be started to efficiently use the available computation power.
 """
 
 import logging
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -190,15 +191,25 @@ class Catalog:
         """
         disk_space = []
         for sim_dir in tqdm(self.simulation_entries):
-            total_size = 0
-            for file_path in sim_dir.rglob("*"):
-                if file_path.is_file():
-                    try:
-                        total_size += file_path.stat().st_size
-                    except (OSError, FileNotFoundError):
-                        # Skip files that can't be accessed
-                        pass
-            disk_space.append(total_size)
+            try:
+                # Use 'du' command for fast disk usage calculation
+                # -s: summary (total for directory)
+                # -k: output in kilobytes for consistency
+                result = subprocess.run(
+                    ["du", "-sk", str(sim_dir)],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                # Parse output: "SIZE\tPATH"
+                size_kb = int(result.stdout.split()[0])
+                # Convert kilobytes to bytes
+                disk_space.append(size_kb * 1024)
+            except (subprocess.CalledProcessError, ValueError, IndexError) as e:
+                logging.warning(
+                    f"Error calculating disk space for {sim_dir}: {e}"
+                )
+                disk_space.append(0)
         return disk_space
 
     def _create_status_log(self, data: dict) -> xr.Dataset:

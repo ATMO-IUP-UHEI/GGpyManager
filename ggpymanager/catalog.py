@@ -19,20 +19,20 @@ from ggpymanager import utils
 
 class Catalog:
     """Catalog manager for GRAMM/GRAL simulations.
-    
+
     Parameters
     ----------
     catalog_path : str | Path
         Path to the catalog directory.
     model : Literal["gramm", "gral"]
         Model type, either "gramm" or "gral".
-        
+
     Raises
     ------
     ValueError
         If model is not "gramm" or "gral".
     """
-    
+
     def __init__(self, catalog_path: str | Path, model: Literal["gramm", "gral"]):
         if model not in ["gramm", "gral"]:
             raise ValueError(f"Model must be 'gramm' or 'gral', got {model}")
@@ -106,12 +106,12 @@ class Catalog:
 
     def _is_simulation_completed(self, sim_dir: Path) -> bool:
         """Check if a simulation is marked as completed based on stdout file.
-        
+
         Parameters
         ----------
         sim_dir : Path
             Path to the simulation directory.
-            
+
         Returns
         -------
         bool
@@ -137,16 +137,19 @@ class Catalog:
         self.status_log_path = self.catalog_path / CONFIG.STATUS_LOG_FILE_NAME
         if self.status_log_path.exists():
             logging.info(f"Status log found at {self.status_log_path}")
+            ds = xr.load_dataset(self.status_log_path)
+            logging.info("Status log loaded successfully.")
         else:
             logging.info("No status log found. Creating a new one.")
             data = self._get_summary()
             ds = self._create_status_log(data)
             ds.to_netcdf(self.status_log_path)
             logging.info(f"Status log created at {self.status_log_path}")
+        logging.info(ds)
 
     def _get_summary(self) -> dict:
         """Parse stdout files and extract summary data.
-        
+
         Returns
         -------
         dict
@@ -180,14 +183,35 @@ class Catalog:
 
         return data
 
+    def _calculate_disk_space(self) -> list:
+        """Calculate disk space used by each simulation directory.
+
+        Returns
+        -------
+        list
+            List of disk space in bytes for each simulation directory.
+        """
+        disk_space = []
+        for sim_dir in self.simulation_entries:
+            total_size = 0
+            for file_path in sim_dir.rglob("*"):
+                if file_path.is_file():
+                    try:
+                        total_size += file_path.stat().st_size
+                    except (OSError, FileNotFoundError):
+                        # Skip files that can't be accessed
+                        pass
+            disk_space.append(total_size)
+        return disk_space
+
     def _create_status_log(self, data: dict) -> xr.Dataset:
         """Create an xarray Dataset from parsed log data.
-        
+
         Parameters
         ----------
         data : dict
             Dictionary containing parsed log metadata.
-            
+
         Returns
         -------
         xr.Dataset
@@ -211,10 +235,28 @@ class Catalog:
                 ds[key] = (("sim_id", "time"), arr)
             else:
                 ds[key] = (("sim_id",), values)
+
+        # Add disk space variable
+        logging.info("Calculating disk space usage for each simulation directory.")
+        disk_space = self._calculate_disk_space()
+        ds["disk_space_bytes"] = (("sim_id",), disk_space)
+        ds["disk_space_bytes"].attrs = {
+            "long_name": "Disk space used by simulation directory",
+            "units": "bytes",
+        }
+
+        # Calculate total disk space
+        total_disk_space_bytes = sum(disk_space)
+        total_disk_space_gb = total_disk_space_bytes / (1024**3)
+
         ds.attrs = {
             "title": f"{self.model.capitalize()} simulation logs",
             "description": (
                 f"Parsed {self.model.capitalize()} log files from multiple simulations."
+            ),
+            "disk_usage_summary": (
+                f"Total disk space used: {total_disk_space_gb:.2f} "
+                f"GB ({total_disk_space_bytes} bytes)."
             ),
             "created_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "simulation_path": self.simulation_path.as_posix(),

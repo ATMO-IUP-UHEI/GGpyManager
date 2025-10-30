@@ -76,7 +76,7 @@ class Catalog:
             logging.warning(f"Simulation path does not exist: {self.simulation_path}")
             return
 
-        for sim_dir in sorted(self.simulation_path.iterdir()):
+        for sim_dir in tqdm(sorted(self.simulation_path.iterdir())):
             if not (sim_dir.is_dir() and sim_dir.name.startswith("sim_")):
                 continue
 

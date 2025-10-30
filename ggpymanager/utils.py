@@ -902,15 +902,15 @@ def filter_lines(raw_lines):
 
 def read_gral_stdout(path: str) -> GRALLogMetadata:
     lm = GRALLogMetadata()
-    try:
-        with Path(path).open() as f:
-            raw_lines = f.readlines()
+    with Path(path).open() as f:
+        raw_lines = f.readlines()
 
-        lines = filter_lines(raw_lines)
+    lines = filter_lines(raw_lines)
 
-        for i, l in enumerate(lines):
-            l_iter = iter(lines[i + 1 :])
+    for i, l in enumerate(lines):
+        l_iter = iter(lines[i + 1 :])
 
+        try:
             match True:
                 case _ if "VERSION" in l:
                     lm.version = l
@@ -989,8 +989,8 @@ def read_gral_stdout(path: str) -> GRALLogMetadata:
                     lm.total_simulation_time = float(l.split(":")[1])
                     lm.dispersion_time = float(next(l_iter).split(":")[1])
                     lm.flow_field_time = float(next(l_iter).split(":")[1])
-    except Exception as e:
-        logging.error(f"Error reading GRAL log file: {e}")
+        except Exception as e:
+            logging.error(f"Error reading GRAL log file: {e}")
     return lm
 
 
@@ -1027,54 +1027,56 @@ def read_gramm_stdout(path: str) -> GRAMMLogMetadata:
 
     for i, l in enumerate(lines):
         l_iter = iter(lines[i + 1 :])
+        try:
+            match True:
+                case _ if "VERSION" in l:
+                    lm.version = l
+                    lm.plattform = next(l_iter)
+                    lm.dotnet_version = next(l_iter)
 
-        match True:
-            case _ if "VERSION" in l:
-                lm.version = l
-                lm.plattform = next(l_iter)
-                lm.dotnet_version = next(l_iter)
+                case _ if "maximum degree of parallelism" in l:
+                    lm.n_processors = int(l.split(":")[1].split()[0])
 
-            case _ if "maximum degree of parallelism" in l:
-                lm.n_processors = int(l.split(":")[1].split()[0])
+                case _ if "Reading ggeom.asc" in l:
+                    lm.ggeom_file_read = True
+                    lm.min_elevation = float(l.split(":")[1].split()[0].rstrip("m"))
+                    lm.max_elevation = float(l.split(":")[1].split()[1].rstrip("m"))
 
-            case _ if "Reading ggeom.asc" in l:
-                lm.ggeom_file_read = True
-                lm.min_elevation = float(l.split(":")[1].split()[0].rstrip("m"))
-                lm.max_elevation = float(l.split(":")[1].split()[1].rstrip("m"))
+                case _ if "Wind direction" in l:
+                    lm.init_direction = float(l.split(":")[1])
 
-            case _ if "Wind direction" in l:
-                lm.init_direction = float(l.split(":")[1])
+                case _ if "Wind speed" in l:
+                    lm.init_wind_speed = float(l.split(":")[1].rstrip("m/s"))
 
-            case _ if "Wind speed" in l:
-                lm.init_wind_speed = float(l.split(":")[1].rstrip("m/s"))
+                case _ if "U-component" in l:
+                    lm.u_component = float(l.split(":")[1].rstrip("m/s"))
 
-            case _ if "U-component" in l:
-                lm.u_component = float(l.split(":")[1].rstrip("m/s"))
+                case _ if "V-component" in l:
+                    lm.v_component = float(l.split(":")[1].rstrip("m/s"))
 
-            case _ if "V-component" in l:
-                lm.v_component = float(l.split(":")[1].rstrip("m/s"))
+                case _ if "Stability class" in l:
+                    lm.init_stability_class = float(l.split(":")[1])
 
-            case _ if "Stability class" in l:
-                lm.init_stability_class = float(l.split(":")[1])
+                case _ if "Obukhov length" in l:
+                    lm.init_obukhov_length = float(l.split(":")[1].rstrip("m"))
 
-            case _ if "Obukhov length" in l:
-                lm.init_obukhov_length = float(l.split(":")[1].rstrip("m"))
+                case _ if "Roughness length" in l:
+                    lm.roughness_length = float(l.split(":")[1].rstrip("m"))
 
-            case _ if "Roughness length" in l:
-                lm.roughness_length = float(l.split(":")[1].rstrip("m"))
+                case _ if "Boundary-Layer height" in l:
+                    lm.init_boundary_layer_height = float(l.split(":")[1].rstrip("m"))
 
-            case _ if "Boundary-Layer height" in l:
-                lm.init_boundary_layer_height = float(l.split(":")[1].rstrip("m"))
+                case _ if "Friction velocity" in l:
+                    lm.friction_velocity = float(l.split(":")[1].rstrip("m/s"))
 
-            case _ if "Friction velocity" in l:
-                lm.friction_velocity = float(l.split(":")[1].rstrip("m/s"))
-
-            case _ if "WEATHER-SIT." in l:
-                next_l = next(l_iter)
-                lm.simulation_attempt.append(int(next_l.split()[0].split("/")[1]))
-                lm.simulation_time.append(float(next_l.split()[1]))
-                lm.simulation_timestep.append(float(next_l.split()[2]))
-                lm.simulation_divergence.append(float(next_l.split()[5]))
+                case _ if "WEATHER-SIT." in l:
+                    next_l = next(l_iter)
+                    lm.simulation_attempt.append(int(next_l.split()[0].split("/")[1]))
+                    lm.simulation_time.append(float(next_l.split()[1]))
+                    lm.simulation_timestep.append(float(next_l.split()[2]))
+                    lm.simulation_divergence.append(float(next_l.split()[5]))
+        except Exception as e:
+            logging.error(f"Error reading GRAMM log file: {e}")
     return lm
 
 

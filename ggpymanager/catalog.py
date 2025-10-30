@@ -6,6 +6,7 @@ which can be started to efficiently use the available computation power.
 
 import logging
 import subprocess
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -16,6 +17,33 @@ from tqdm import tqdm
 
 import ggpymanager.config as CONFIG
 from ggpymanager import utils
+
+
+def _get_dir_size(sim_dir: Path) -> int:
+    """Get disk space for a single directory.
+
+    Parameters
+    ----------
+    sim_dir : Path
+        Path to the simulation directory.
+
+    Returns
+    -------
+    int
+        Size in bytes, or 0 on error.
+    """
+    try:
+        result = subprocess.run(
+            ["du", "-sk", str(sim_dir)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        size_kb = int(result.stdout.split()[0])
+        return size_kb * 1024
+    except (subprocess.CalledProcessError, ValueError, IndexError) as e:
+        logging.warning(f"Error calculating disk space for {sim_dir}: {e}")
+        return 0
 
 
 class Catalog:
@@ -189,27 +217,24 @@ class Catalog:
         list
             List of disk space in bytes for each simulation directory.
         """
-        disk_space = []
-        for sim_dir in tqdm(self.simulation_entries):
-            try:
-                # Use 'du' command for fast disk usage calculation
-                # -s: summary (total for directory)
-                # -k: output in kilobytes for consistency
-                result = subprocess.run(
-                    ["du", "-sk", str(sim_dir)],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                # Parse output: "SIZE\tPATH"
-                size_kb = int(result.stdout.split()[0])
-                # Convert kilobytes to bytes
-                disk_space.append(size_kb * 1024)
-            except (subprocess.CalledProcessError, ValueError, IndexError) as e:
-                logging.warning(
-                    f"Error calculating disk space for {sim_dir}: {e}"
-                )
-                disk_space.append(0)
+        # Use multiprocessing to parallelize du calls
+        disk_space = [0] * len(self.simulation_entries)
+        with ProcessPoolExecutor() as executor:
+            # Submit all tasks
+            future_to_idx = {
+                executor.submit(_get_dir_size, sim_dir): idx
+                for idx, sim_dir in enumerate(self.simulation_entries)
+            }
+
+            # Collect results with progress bar
+            for future in tqdm(
+                as_completed(future_to_idx),
+                total=len(self.simulation_entries),
+                desc="Calculating disk space",
+            ):
+                idx = future_to_idx[future]
+                disk_space[idx] = future.result()
+
         return disk_space
 
     def _create_status_log(self, data: dict) -> xr.Dataset:

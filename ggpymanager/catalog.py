@@ -289,7 +289,7 @@ class Catalog:
             ),
             "disk_usage_summary": (
                 f"Total disk space used: {total_disk_space_gb:.2f} "
-                f"GB ({total_disk_space_bytes} bytes)."
+                f"GiB ({total_disk_space_bytes} bytes)."
             ),
             "created_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "simulation_path": self.simulation_path.as_posix(),

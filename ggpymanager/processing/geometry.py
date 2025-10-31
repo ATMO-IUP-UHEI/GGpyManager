@@ -436,7 +436,10 @@ def create_ggeom_dataset(
             lower_points + cell_height[idz] * relative_column_height
         )
 
-    geom["Z"] = (["z_stag"], np.append([0], np.cumsum(cell_height)) + min_elevation)
+    geom["Z"] = (
+        ["z_stag"],
+        np.append([0], np.cumsum(cell_height)) + min_elevation.values,
+    )
     logging.info(
         f"Elevation minimum {min_elevation:.2f} m and maximum {max_elevation:.2f} m."
     )

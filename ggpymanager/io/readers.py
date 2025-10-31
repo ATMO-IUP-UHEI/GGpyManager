@@ -431,6 +431,8 @@ def read_esri_ascii(path: str | Path) -> tuple[np.ndarray, dict]:
             header[key.lower()] = float(value) if "." in value else int(value)
         data = np.loadtxt(f)
         assert data.shape == (header["nrows"], header["ncols"])
+    # ESRI ASCII files are stored from top to bottom, so we need to flip the array
+    data = np.flipud(data)
     return data, header
 
 

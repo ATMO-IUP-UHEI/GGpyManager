@@ -260,6 +260,19 @@ def read_gral_geometries(
         geom["kkart"].attrs = {"units": "-", "long_name": "Surface index"}
         geom["bui_height"].attrs = {"units": "m", "long_name": "Building height"}
         geom["oro"].attrs = {"units": "m", "long_name": "Orography"}
+        # Add the header info as attributes
+        geom.attrs.update(
+            {
+                "nz": nz,
+                "ny": ny,
+                "nx": nx,
+                "ikooagral": ikooagral,
+                "jkooagral": jkooagral,
+                "dzk": dzk,
+                "stretch": stretch,
+                "ahmin": ahmin,
+            }
+        )
         return geom
 
 

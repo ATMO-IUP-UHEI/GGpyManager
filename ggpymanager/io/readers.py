@@ -4,7 +4,7 @@ import struct
 import zipfile
 from importlib import resources
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -188,8 +188,8 @@ def read_buildings(path: str | Path, GRAL: Any) -> np.ndarray:
 
 
 def read_gral_geometries(
-    path: str | Path,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    path: str | Path, as_xarray: bool = False
+) -> xr.Dataset | tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAL geometry data from a binary file.
 
     Returns surface elevation (ahk), surface index (kkart),
@@ -199,17 +199,14 @@ def read_gral_geometries(
     ----------
     path : str | Path
         Path to the binary geometry file.
+    as_xarray : bool, optional
+        If True, return as xarray Dataset. Default is False.
 
     Returns
     -------
-    ahk : np.ndarray
-        2D array of surface elevations.
-    kkart : np.ndarray
-        2D array of surface indices (int).
-    bui_height : np.ndarray
-        2D array of building heights.
-    oro : np.ndarray
-        2D array of orography (surface elevation minus building height).
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray] | xr.Dataset
+        If as_xarray is False, returns tuple of (ahk, kkart, bui_height, oro) arrays.
+        If as_xarray is True, returns xarray Dataset with these variables.
     """
     with open(path, mode="rb") as binfile:
         byte_list = binfile.read()
@@ -237,8 +234,33 @@ def read_gral_geometries(
     kkart = arr_reshaped[:-1, :-1]["kkart"]
     bui_height = arr_reshaped[:-1, :-1]["bui_height"]
     oro = ahk - bui_height
-
-    return ahk, kkart, bui_height, oro
+    if not as_xarray:
+        return ahk, kkart, bui_height, oro
+    else:
+        geom = xr.Dataset(
+            {
+                "ahk": (("x", "y"), ahk),
+                "kkart": (("x", "y"), kkart),
+                "bui_height": (("x", "y"), bui_height),
+                "oro": (("x", "y"), oro),
+            },
+            coords={
+                "x": np.arange(0, nx) * stretch + ikooagral,
+                "y": np.arange(0, ny) * stretch + jkooagral,
+            },
+            attrs={
+                "nz": nz,
+                "dzk": dzk,
+                "stretching_factor": stretch,
+                "ahmin": ahmin,
+                "description": f"GRAL geometries read from {path}.",
+            },
+        )
+        geom["ahk"].attrs = {"units": "m", "long_name": "Surface elevation"}
+        geom["kkart"].attrs = {"units": "-", "long_name": "Surface index"}
+        geom["bui_height"].attrs = {"units": "m", "long_name": "Building height"}
+        geom["oro"].attrs = {"units": "m", "long_name": "Orography"}
+        return geom
 
 
 def read_gral_windfield(

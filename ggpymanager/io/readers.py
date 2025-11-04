@@ -303,25 +303,18 @@ def read_gral_windfield(
     """
     # Read file data
     if zipfile.is_zipfile(path):
-        print("Reading zipped GRAL wind field...")
         with zipfile.ZipFile(path, "r") as gff:
             filename = gff.namelist()[0]  # Get first file directly
             byte_list = gff.read(filename)
     else:
-        print("Reading GRAL wind field...")
         with open(path, mode="rb") as binfile:
             byte_list = binfile.read()
-    print(f"Reading {len(byte_list)} bytes from {path.name}...")
     # Parse header
     nheader = 32
     nz, ny, nx, direction, speed, stab_class, dxy, h = struct.unpack(
         "iiiffifi", byte_list[:nheader]
     )
     direction = 270.0 - np.rad2deg(direction)
-    print(
-        f"Reading GRAL wind field from {path.name}: nx={nx}, ny={ny}, nz={nz}, "
-        f"speed={speed} m/s, direction={direction} deg, stability class={stab_class}."
-    )
     # Parse data directly with proper shape
     count = (nx + 1) * (ny + 1) * (nz + 1) * 3
     data = np.frombuffer(byte_list, dtype=np.int16, count=count, offset=nheader)

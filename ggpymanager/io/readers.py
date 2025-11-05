@@ -394,8 +394,8 @@ def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
     con = np.zeros((GRAL.nx, GRAL.ny), dtype=np.float32)
 
     # Compute indices directly
-    idx = ((datarr["x"] - GRAL.xmin) / GRAL.dx + 0.5).astype(int)
-    idy = ((datarr["y"] - GRAL.ymin) / GRAL.dy + 0.5).astype(int)
+    idx = ((datarr["x"] - GRAL.xmin) / GRAL.dx - 0.5).astype(int)
+    idy = ((datarr["y"] - GRAL.ymin) / GRAL.dy - 0.5).astype(int)
 
     con[idx, idy] = datarr["val"]
 

@@ -16,7 +16,7 @@ import xarray as xr
 from tqdm import tqdm
 
 import ggpymanager.config as CONFIG
-from ggpymanager import utils
+from ggpymanager import io, models
 
 
 def _get_dir_size(sim_dir: Path) -> int:
@@ -190,15 +190,15 @@ class Catalog:
         for file in tqdm(stdout_files):
             if file.exists():
                 logs.append(
-                    utils.read_gramm_stdout(str(file))
+                    io.read_gramm_stdout(str(file))
                     if self.model == "gramm"
-                    else utils.read_gral_stdout(str(file))
+                    else io.read_gral_stdout(str(file))
                 )
             else:
                 logs.append(
-                    utils.GRAMMLogMetadata()
+                    models.GRAMMLogMetadata()
                     if self.model == "gramm"
-                    else utils.GRALLogMetadata()
+                    else models.GRALLogMetadata()
                 )
 
         data = {}

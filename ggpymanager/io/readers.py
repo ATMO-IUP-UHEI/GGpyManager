@@ -188,7 +188,7 @@ def read_buildings(path: str | Path, GRAL: Any) -> np.ndarray:
 
 
 def read_gral_geometries(
-    path: str | Path, as_xarray: bool = False
+    path: str | Path, as_xarray: bool = False, dx: float = 10.0, dy: float = 10.0
 ) -> xr.Dataset | tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAL geometry data from a binary file.
 
@@ -201,6 +201,10 @@ def read_gral_geometries(
         Path to the binary geometry file.
     as_xarray : bool, optional
         If True, return as xarray Dataset. Default is False.
+    dx : float
+        Cell size in x-direction.
+    dy : float
+        Cell size in y-direction.
 
     Returns
     -------
@@ -245,8 +249,8 @@ def read_gral_geometries(
                 "oro": (("x", "y"), oro),
             },
             coords={
-                "x": np.arange(0, nx) * stretch + ikooagral,
-                "y": np.arange(0, ny) * stretch + jkooagral,
+                "x": np.arange(0, nx) * dx + ikooagral,
+                "y": np.arange(0, ny) * dy + jkooagral,
             },
             attrs={
                 "nz": nz,

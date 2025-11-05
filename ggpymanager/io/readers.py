@@ -249,8 +249,8 @@ def read_gral_geometries(
                 "oro": (("x", "y"), oro),
             },
             coords={
-                "x": np.arange(0, nx) * dx + ikooagral,
-                "y": np.arange(0, ny) * dy + jkooagral,
+                "x": (np.arange(0, nx) + 0.5) * dx + ikooagral,
+                "y": (np.arange(0, ny) + 0.5) * dy + jkooagral,
             },
             attrs={
                 "nz": nz,

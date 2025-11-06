@@ -13,3 +13,6 @@ readme = "README.md"
 version = "1.0.0"
 
 # dependencies = [] # Dependencies should be installed with conda
+
+[project.scripts]
+ggpymanager = "ggpymanager.cli:main"

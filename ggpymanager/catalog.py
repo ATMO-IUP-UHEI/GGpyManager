@@ -86,7 +86,7 @@ class Catalog:
         if missing_files:
             logging.warning(
                 "The following input files are missing in "
-                f"{self.config_path}: {missing_files}"
+                f"{self.config_path}:\n{missing_files}"
             )
         else:
             logging.info("All required input files are present.")

@@ -2,6 +2,10 @@
 
 from .concentration import (
     convert_locations_to_grid,
+    get_measurement_locations_in_model,
+    create_figure_of_locations,
+    generate_empty_dataset,
+    process_concentration_from_model,
 )
 from .wind import (
     direction_from_vector,
@@ -24,6 +28,10 @@ from .landuse import convert_to_gramm_landuse_variables, load_corine_lookup_tabl
 __all__ = [
     # Concentration
     "convert_locations_to_grid",
+    "get_measurement_locations_in_model",
+    "create_figure_of_locations",
+    "generate_empty_dataset",
+    "process_concentration_from_model",
     # Wind
     "direction_from_vector",
     "wind_speed_from_vector",

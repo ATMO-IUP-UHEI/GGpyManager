@@ -562,7 +562,7 @@ def process_concentration_from_model(
 
         logging.info(
             f"Processing simulations {batch_start + 1} to {batch_end} "
-            f"out of {len(dir_list)}"
+            f"out of {len(missing_dir_list)}"
         )
 
         data = pool_data(

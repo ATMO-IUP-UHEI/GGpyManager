@@ -529,7 +529,6 @@ def process_concentration_from_model(
     logging.info(f"Looking for simulation directories in {sim_path}")
     dir_list = sorted([d for d in sim_path.iterdir() if d.is_dir()])
     logging.info(f"Found {len(dir_list)} directories.")
-    sim_indices = [int(f.name.removeprefix("sim_")) for f in dir_list]
     if gral_concentration_output_path.exists():
         logging.info(
             "Loading existing GRAL concentration dataset from:\n"
@@ -538,6 +537,7 @@ def process_concentration_from_model(
         con = xr.load_dataset(gral_concentration_output_path)
     else:
         logging.info("Generating empty GRAL concentration dataset")
+        sim_indices = [int(d.name.removeprefix("sim_")) for d in dir_list]
         con = generate_empty_dataset(
             geometry, config["source_groups"], sim_indices, model_stations
         )
@@ -558,7 +558,9 @@ def process_concentration_from_model(
         timer = datetime.now()
         batch_end = min(batch_start + batch_size, len(missing_dir_list))
         batch_dirs = missing_dir_list[batch_start:batch_end]
-        batch_sim_indices = sim_indices[batch_start:batch_end]
+        batch_sim_indices = [
+            int(d.name.removeprefix("sim_")) for d in batch_dirs
+        ]
 
         logging.info(
             f"Processing simulations {batch_start + 1} to {batch_end} "

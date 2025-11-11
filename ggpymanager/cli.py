@@ -13,7 +13,7 @@ logger.setLevel(logging.INFO)
 
 @click.group()
 def main():
-    """My Package CLI tool"""
+    """GGPyManager CLI"""
     pass
 
 

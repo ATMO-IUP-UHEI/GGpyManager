@@ -65,9 +65,9 @@ def write_esri_ascii(path: str | Path, data: xr.DataArray) -> None:
         logging.warning(f"File {path} already exists!")
         raise FileExistsError
     ncols, nrows = data.sizes["x"], data.sizes["y"]
-    xllcorner = data.x.min().values - 5
-    yllcorner = data.y.min().values - 5
     cellsize = data.x.diff("x").mean().values
+    xllcorner = data.x.min().values - cellsize / 2
+    yllcorner = data.y.min().values - cellsize / 2
     nodata_value = -9999
     header = (
         "NCOLS {}\n"

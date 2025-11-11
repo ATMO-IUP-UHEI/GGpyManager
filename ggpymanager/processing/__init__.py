@@ -1,5 +1,8 @@
 """Data processing utilities."""
 
+from .concentration import (
+    convert_locations_to_grid,
+)
 from .wind import (
     direction_from_vector,
     wind_speed_from_vector,
@@ -19,6 +22,8 @@ from .geometry import (
 from .landuse import convert_to_gramm_landuse_variables, load_corine_lookup_table
 
 __all__ = [
+    # Concentration
+    "convert_locations_to_grid",
     # Wind
     "direction_from_vector",
     "wind_speed_from_vector",

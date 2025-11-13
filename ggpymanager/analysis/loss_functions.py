@@ -141,12 +141,12 @@ def compound_loss(u, v, u_model, v_model, lambda_=0.7):
 
 @check_docstring_dims
 def compute_matching_loss(
-    u,
-    v,
-    u_model,
-    v_model,
-    matching="rmse",
-    filter=False,
+    u: xr.DataArray,
+    v: xr.DataArray,
+    u_model: xr.DataArray,
+    v_model: xr.DataArray,
+    matching: str = "rmse",
+    filter: bool = False,
     synoptic_wind_speed=None,
     global_radiation=None,
     stab_class_catalog=None,
@@ -170,11 +170,11 @@ def compute_matching_loss(
         Options: 'rmse', 'regularized', 'compound'.
     filter : bool, optional
         Whether to filter by stability class. Default is False.
-    synoptic_wind_speed : xr.DataArray, optional
+    synoptic_wind_speed : xr.DataArray, optional (sim_id)
         Synoptic wind speed data with sim_id dimension (required for filtering).
-    global_radiation : xr.DataArray, optional
+    global_radiation : xr.DataArray, optional (time)
         Global radiation data with time dimension (required for filtering).
-    stab_class_catalog : xr.DataArray, optional
+    stab_class_catalog : xr.DataArray, optional (sim_id)
         Stability class data with sim_id dimension (required for filtering).
 
     Returns

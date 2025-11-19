@@ -11,6 +11,7 @@ from .wind import (
     direction_from_vector,
     wind_speed_from_vector,
     vector_from_direction_and_speed,
+    circular_mean,
 )
 from .geometry import (
     create_domain_geometry,
@@ -36,6 +37,7 @@ __all__ = [
     "direction_from_vector",
     "wind_speed_from_vector",
     "vector_from_direction_and_speed",
+    "circular_mean",
     # Geometry
     "create_domain_geometry",
     "create_domain_grid",

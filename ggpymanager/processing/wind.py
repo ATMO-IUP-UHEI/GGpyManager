@@ -64,3 +64,22 @@ def vector_from_direction_and_speed(direction: Any, speed: Any) -> tuple[Any, An
     ux = -speed * np.sin(rad)  # Eastward component
     vy = -speed * np.cos(rad)  # Northward component
     return ux, vy
+
+
+def circular_mean(angles: Any) -> Any:
+    """Calculate the circular mean of a set of angles.
+
+    Parameters
+    ----------
+    angles : array_like
+        Array of angles in degrees.
+
+    Returns
+    -------
+    mean_angle : array_like
+        Circular mean angle in degrees.
+    """
+    sin_sum = np.sum(np.sin(np.deg2rad(angles)), axis=0)
+    cos_sum = np.sum(np.cos(np.deg2rad(angles)), axis=0)
+    mean_angle = np.rad2deg(np.arctan2(sin_sum, cos_sum)) % 360
+    return mean_angle

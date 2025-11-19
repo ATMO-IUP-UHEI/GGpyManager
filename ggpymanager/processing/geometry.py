@@ -7,6 +7,7 @@ import geopandas as gpd
 import numpy as np
 import shapely.geometry
 import xarray as xr
+from ggpymanager import utils
 
 
 def create_domain_geometry(
@@ -28,9 +29,12 @@ def create_domain_geometry(
         GeoDataFrame containing a single polygon geometry representing
         the domain area.
     """
+    crs = config["domain"]["crs"]
+    if isinstance(crs, dict):
+        crs = utils.get_centered_custom_projection(crs["center_lat"], crs["center_lon"])
     domain_area = gpd.GeoDataFrame(
         geometry=[shapely.geometry.box(*config["domain"][name]["bbox"].values())],
-        crs=config["domain"]["crs"],
+        crs=crs,
     )
 
     return domain_area

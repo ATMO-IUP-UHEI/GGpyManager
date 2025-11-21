@@ -101,7 +101,10 @@ def create_domain_grid(
             "x_stag": x_stag_coords,
         },
     )
-    grid = grid.rio.write_crs(config["domain"]["crs"])
+    crs = config["domain"]["crs"]
+    if isinstance(crs, dict):
+        crs = utils.get_centered_custom_projection(crs["center_lat"], crs["center_lon"])
+    grid = grid.rio.write_crs(crs)
     return grid
 
 

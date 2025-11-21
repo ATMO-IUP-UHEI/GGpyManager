@@ -8,6 +8,7 @@ from .concentration import (
     process_concentration_from_model,
 )
 from .wind import (
+    direction_from_compass,
     direction_from_vector,
     wind_speed_from_vector,
     vector_from_direction_and_speed,
@@ -34,6 +35,7 @@ __all__ = [
     "generate_empty_dataset",
     "process_concentration_from_model",
     # Wind
+    "direction_from_compass",
     "direction_from_vector",
     "wind_speed_from_vector",
     "vector_from_direction_and_speed",

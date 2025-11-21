@@ -202,6 +202,15 @@ def compute_matching_loss(
         logging.info(
             "Filtered {:.1f} % of the results.".format(stab_mask.mean().values * 100)
         )
+    elif (
+        (synoptic_wind_speed is not None)
+        or (global_radiation is not None)
+        or (stab_class_catalog is not None)
+    ):
+        logging.warning(
+            "Filtering parameters were provided but 'filter' is set to False. No "
+            "filtering applied."
+        )
 
     # Add metadata
     matching_loss.name = f"{matching}_loss"

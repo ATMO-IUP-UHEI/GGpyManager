@@ -4,6 +4,51 @@ import numpy as np
 from typing import Any
 
 
+def direction_from_compass(compass: str) -> float:
+    """Convert compass direction string to degrees.
+
+    Parameters
+    ----------
+    compass : str
+        Compass direction (e.g., "N", "NE", "SSE").
+        Case-insensitive.
+
+    Returns
+    -------
+    direction : float
+        Wind direction in degrees (meteorological convention).
+
+    Raises
+    ------
+    ValueError
+        If the compass direction is not recognized.
+    """
+    compass_map = {
+        "N": 0,
+        "NNE": 22.5,
+        "NE": 45,
+        "ENE": 67.5,
+        "E": 90,
+        "ESE": 112.5,
+        "SE": 135,
+        "SSE": 157.5,
+        "S": 180,
+        "SSW": 202.5,
+        "SW": 225,
+        "WSW": 247.5,
+        "W": 270,
+        "WNW": 292.5,
+        "NW": 315,
+        "NNW": 337.5,
+    }
+
+    compass_upper = compass.upper().strip()
+    if compass_upper not in compass_map:
+        raise ValueError(f"Unknown compass direction: {compass}")
+
+    return compass_map[compass_upper]
+
+
 def direction_from_vector(ux: Any, vy: Any) -> Any:
     """Calculate the wind direction from the vector components.
 

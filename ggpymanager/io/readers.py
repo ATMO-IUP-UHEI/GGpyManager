@@ -138,7 +138,7 @@ def read_gramm_windfield(
     Returns
     -------
     tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
-        Header info, u wind component, v wind component, w wind component.
+        Header info, u wind component, v wind component, w wind component in m/s.
     """
     with path.open("rb") as f:
         data = f.read()
@@ -151,9 +151,9 @@ def read_gramm_windfield(
     info = np.frombuffer(data[: nheader - 4], dtype=np.int32)
     datarr = np.frombuffer(data[nheader:], dtype=dt)
     datarr = np.reshape(datarr, [nx, ny, nz, 3])
-    wind_u = datarr[:, :, :, 0] * 0.01
-    wind_v = datarr[:, :, :, 1] * 0.01
-    wind_w = datarr[:, :, :, 2] * 0.01
+    wind_u = datarr[:, :, :, 0] * 100
+    wind_v = datarr[:, :, :, 1] * 100
+    wind_w = datarr[:, :, :, 2] * 100
 
     return info, wind_u, wind_v, wind_w
 
@@ -188,7 +188,7 @@ def read_buildings(path: str | Path, GRAL: Any) -> np.ndarray:
 
 
 def read_gral_geometries(
-    path: str | Path, as_xarray: bool = False, dx: float = 10.0, dy: float = 10.0
+    path: str | Path, as_xarray: bool, dx: float, dy: float
 ) -> xr.Dataset | tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Read GRAL geometry data from a binary file.
 

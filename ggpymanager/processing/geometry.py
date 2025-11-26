@@ -7,6 +7,7 @@ import geopandas as gpd
 import numpy as np
 import shapely.geometry
 import xarray as xr
+import rioxarray  # noqa: F401
 from ggpymanager import utils
 
 
@@ -32,8 +33,11 @@ def create_domain_geometry(
     crs = config["domain"]["crs"]
     if isinstance(crs, dict):
         crs = utils.get_centered_custom_projection(crs["center_lat"], crs["center_lon"])
+    
+    bbox = config["domain"][name]["bbox"]
+    # shapely.geometry.box expects (minx, miny, maxx, maxy)
     domain_area = gpd.GeoDataFrame(
-        geometry=[shapely.geometry.box(*config["domain"][name]["bbox"].values())],
+        geometry=[shapely.geometry.box(bbox["x0"], bbox["y0"], bbox["x1"], bbox["y1"])],
         crs=crs,
     )
 

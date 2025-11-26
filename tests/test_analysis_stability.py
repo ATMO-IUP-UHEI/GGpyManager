@@ -13,7 +13,7 @@ class TestGetAllowedStabilityClass:
     @pytest.fixture
     def sample_data(self):
         """Create sample meteorological data for testing."""
-        #ƒ Systematic sampling: 3 radiation levels (time dimension)
+        # ƒ Systematic sampling: 3 radiation levels (time dimension)
         # 7 wind speeds between 0 and 7 m/s and 7 stability classes (1-7)
         # Create a sim_id dimension containing all combinations (7*7 = 49)
         radiations = np.array([0.0, 400.0, 800.0])
@@ -78,7 +78,6 @@ class TestGetAllowedStabilityClass:
 
         # Each timestep should have at least one allowed stability class
         assert (result.sum(dim="sim_id") > 0).all()
-
 
     def test_get_allowed_stability_class_no_nan(self, sample_data):
         """Test that result contains no NaN values."""

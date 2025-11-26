@@ -141,17 +141,18 @@ class TestCompoundLoss:
     def sample_wind_data(self):
         """Create sample wind data for testing."""
         np.random.seed(42)
-        time = np.arange(10)
+        n_time = 100
+        time = np.arange(n_time)
         station = ["A", "B"]
         sim_id = [1, 2]
 
         u = xr.DataArray(
-            np.random.randn(10, 2) + 5,
+            np.random.randn(n_time, 2) + 5,
             dims=["time", "station"],
             coords={"time": time, "station": station},
         )
         v = xr.DataArray(
-            np.random.randn(10, 2) + 5,
+            np.random.randn(n_time, 2) + 5,
             dims=["time", "station"],
             coords={"time": time, "station": station},
         )
@@ -182,7 +183,10 @@ class TestCompoundLoss:
         result_03 = loss_functions.compound_loss(u, v, u_model, v_model, lambda_=0.3)
 
         # Results should differ with different lambda
-        assert not xr.testing.assert_allclose(result_07, result_03, rtol=0.01)
+        # Confirm that results are not all close within a small tolerance by
+        # expecting xr.testing.assert_allclose to raise an AssertionError.
+        with pytest.raises(AssertionError):
+            xr.testing.assert_allclose(result_07, result_03, rtol=0.01)
 
     def test_compound_loss_bounds(self, sample_wind_data):
         """Test that compound loss is bounded."""

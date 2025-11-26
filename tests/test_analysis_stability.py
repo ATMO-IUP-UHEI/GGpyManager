@@ -13,22 +13,33 @@ class TestGetAllowedStabilityClass:
     @pytest.fixture
     def sample_data(self):
         """Create sample meteorological data for testing."""
-        np.random.seed(42)
-        time = np.arange(24)
-        sim_id = [1, 2, 3, 4, 5]
+        #ƒ Systematic sampling: 3 radiation levels (time dimension)
+        # 7 wind speeds between 0 and 7 m/s and 7 stability classes (1-7)
+        # Create a sim_id dimension containing all combinations (7*7 = 49)
+        radiations = np.array([0.0, 400.0, 800.0])
+        time = np.arange(len(radiations))
+
+        wind_speeds = np.linspace(0, 7, 7)
+        stab_classes = np.arange(1, 8)
+
+        # Build all combinations of (wind_speed, stab_class)
+        wind_grid = np.repeat(wind_speeds, len(stab_classes))
+        stab_grid = np.tile(stab_classes, len(wind_speeds))
+
+        sim_id = list(range(1, len(wind_grid) + 1))
 
         radiation = xr.DataArray(
-            np.random.rand(24) * 800,  # Radiation between 0-800 W/m²
+            radiations,
             dims=["time"],
             coords={"time": time},
         )
         wind_speed = xr.DataArray(
-            np.random.rand(5) * 10 + 2,  # Wind speed between 2-12 m/s
+            wind_grid,
             dims=["sim_id"],
             coords={"sim_id": sim_id},
         )
         stab_class_catalog = xr.DataArray(
-            [1, 2, 3, 4, 5],  # Stability classes A-E
+            stab_grid,
             dims=["sim_id"],
             coords={"sim_id": sim_id},
         )
@@ -68,31 +79,6 @@ class TestGetAllowedStabilityClass:
         # Each timestep should have at least one allowed stability class
         assert (result.sum(dim="sim_id") > 0).all()
 
-    def test_get_allowed_stability_class_high_radiation(self):
-        """Test stability class filtering with high radiation (daytime)."""
-        radiation = xr.DataArray([800.0], dims=["time"])
-        wind_speed = xr.DataArray([3.0, 4.0, 5.0], dims=["sim_id"])
-        stab_class_catalog = xr.DataArray([1, 2, 3], dims=["sim_id"])  # A, B, C
-
-        result = stability.get_allowed_stability_class(
-            radiation, wind_speed, stab_class_catalog
-        )
-
-        # With high radiation, unstable classes (A, B) should be more likely
-        assert result.any()
-
-    def test_get_allowed_stability_class_low_radiation(self):
-        """Test stability class filtering with low radiation (nighttime)."""
-        radiation = xr.DataArray([0.0], dims=["time"])
-        wind_speed = xr.DataArray([3.0, 4.0, 5.0], dims=["sim_id"])
-        stab_class_catalog = xr.DataArray([4, 5, 6], dims=["sim_id"])  # D, E, F
-
-        result = stability.get_allowed_stability_class(
-            radiation, wind_speed, stab_class_catalog
-        )
-
-        # With low radiation, stable classes (E, F) should be more likely
-        assert result.any()
 
     def test_get_allowed_stability_class_no_nan(self, sample_data):
         """Test that result contains no NaN values."""

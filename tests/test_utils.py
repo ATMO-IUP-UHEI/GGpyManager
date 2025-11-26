@@ -1,5 +1,5 @@
 import numpy as np
-from ggpymanager import utils
+from ggpymanager import processing
 
 
 def test_wind_conversion():
@@ -18,9 +18,9 @@ def test_wind_conversion():
         print(key)
         vector = data[:2]
         direction = data[2]
-        computed_direction = utils.direction_from_vector(*vector)
-        computed_speed = utils.wind_speed_from_vector(*vector)
-        computed_vector = utils.vector_from_direction_and_speed(
+        computed_direction = processing.direction_from_vector(*vector)
+        computed_speed = processing.wind_speed_from_vector(*vector)
+        computed_vector = processing.vector_from_direction_and_speed(
             computed_direction, computed_speed
         )
         # Assert

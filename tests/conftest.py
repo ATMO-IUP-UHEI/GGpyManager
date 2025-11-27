@@ -15,17 +15,17 @@ import ggpymanager.config as CONFIG
 @pytest.fixture
 def tmp_catalog_dir(tmp_path):
     """Create a temporary catalog directory structure.
-    
+
     Parameters
     ----------
     tmp_path : Path
         Pytest's built-in temporary directory fixture.
-    
+
     Yields
     ------
     Path
         Path to the temporary catalog directory.
-    
+
     Examples
     --------
     >>> def test_something(tmp_catalog_dir):
@@ -35,36 +35,36 @@ def tmp_catalog_dir(tmp_path):
     """
     catalog_dir = tmp_path / "test_catalog"
     catalog_dir.mkdir()
-    
+
     # Create config directory
     config_dir = catalog_dir / CONFIG.CONFIG_PATH
     config_dir.mkdir(parents=True)
-    
+
     # Create simulations directory
     sim_dir = catalog_dir / CONFIG.SIMULATION_PATH
     sim_dir.mkdir(parents=True)
-    
+
     yield catalog_dir
-    
+
     # Cleanup happens automatically with tmp_path
 
 
 @pytest.fixture
 def gramm_config_files(tmp_catalog_dir):
     """Create minimal GRAMM configuration files.
-    
+
     Parameters
     ----------
     tmp_catalog_dir : Path
         Temporary catalog directory from tmp_catalog_dir fixture.
-    
+
     Yields
     ------
     Path
         Path to the config directory with GRAMM files.
     """
     config_dir = tmp_catalog_dir / CONFIG.CONFIG_PATH
-    
+
     # Create minimal versions of required GRAMM input files
     for file_name in CONFIG.INPUT_FILES["gramm"]:
         file_path = config_dir / file_name
@@ -79,8 +79,7 @@ def gramm_config_files(tmp_catalog_dir):
                 "xllcorner 0\n"
                 "yllcorner 0\n"
                 "cellsize 10\n"
-                "NODATA_value -9999\n"
-                + "0 " * 10 + "\n" * 10
+                "NODATA_value -9999\n" + "0 " * 10 + "\n" * 10
             )
         elif file_name.endswith(".all"):
             # Minimal meteopgt.all format
@@ -90,26 +89,26 @@ def gramm_config_files(tmp_catalog_dir):
             file_path.write_text("10 10 10\n0 0 0\n100 100 100\n")
         else:
             file_path.write_text("")
-    
+
     yield config_dir
 
 
 @pytest.fixture
 def gral_config_files(tmp_catalog_dir):
     """Create minimal GRAL configuration files.
-    
+
     Parameters
     ----------
     tmp_catalog_dir : Path
         Temporary catalog directory from tmp_catalog_dir fixture.
-    
+
     Yields
     ------
     Path
         Path to the config directory with GRAL files.
     """
     config_dir = tmp_catalog_dir / CONFIG.CONFIG_PATH
-    
+
     # Create minimal versions of required GRAL input files
     for file_name in CONFIG.INPUT_FILES["gral"]:
         file_path = config_dir / file_name
@@ -124,8 +123,7 @@ def gral_config_files(tmp_catalog_dir):
                 "xllcorner 0\n"
                 "yllcorner 0\n"
                 "cellsize 10\n"
-                "NODATA_value -9999\n"
-                + "0 " * 10 + "\n" * 10
+                "NODATA_value -9999\n" + "0 " * 10 + "\n" * 10
             )
         elif file_name.endswith(".all"):
             # Minimal meteopgt.all format
@@ -135,14 +133,14 @@ def gral_config_files(tmp_catalog_dir):
             file_path.write_text("10 10 10\n0 0 0\n100 100 100\n")
         else:
             file_path.write_text("")
-    
+
     yield config_dir
 
 
 @pytest.fixture
 def simulation_entry(tmp_catalog_dir, request):
     """Create a simulation entry in the catalog.
-    
+
     Parameters
     ----------
     tmp_catalog_dir : Path
@@ -150,12 +148,12 @@ def simulation_entry(tmp_catalog_dir, request):
     request : FixtureRequest
         Pytest request object for parameterization.
         Use @pytest.mark.parametrize to pass sim_id and completed status.
-    
+
     Yields
     ------
     Path
         Path to the simulation entry directory.
-    
+
     Examples
     --------
     >>> @pytest.mark.parametrize("sim_id,completed", [(1, True), (2, False)])
@@ -167,40 +165,40 @@ def simulation_entry(tmp_catalog_dir, request):
     sim_id = getattr(request, "param", {}).get("sim_id", 1)
     completed = getattr(request, "param", {}).get("completed", False)
     model = getattr(request, "param", {}).get("model", "gramm")
-    
+
     sim_dir = (
-        tmp_catalog_dir 
-        / CONFIG.SIMULATION_PATH 
+        tmp_catalog_dir
+        / CONFIG.SIMULATION_PATH
         / CONFIG.CATALOG_ENTRY_PATH_FORMATTER.format(sim_id=sim_id)
     )
     sim_dir.mkdir(parents=True)
-    
+
     # Create log file
     log_file = sim_dir / CONFIG.STD_OUT_FILE_NAME[model]
     log_content = ""
     if completed:
         log_content = CONFIG.STD_OUT_STRING_FOR_COMPLETED_SIMULATION[model]
     log_file.write_text(log_content)
-    
+
     # Create wind file if completed
     if completed:
         wind_file = sim_dir / CONFIG.WIND_FILE_EXTENSION[model]
         wind_file.write_text("# Wind field data\n")
-    
+
     yield sim_dir
 
 
 @pytest.fixture(params=["gramm", "gral"])
 def model_type(request) -> Literal["gramm", "gral"]:
     """Parametrized fixture for model types.
-    
+
     Automatically runs tests for both GRAMM and GRAL models.
-    
+
     Yields
     ------
     str
         Model type: "gramm" or "gral"
-    
+
     Examples
     --------
     >>> def test_both_models(model_type):
@@ -213,12 +211,12 @@ def model_type(request) -> Literal["gramm", "gral"]:
 @pytest.fixture
 def sample_data_file(tmp_path):
     """Create a sample data file for testing I/O operations.
-    
+
     Parameters
     ----------
     tmp_path : Path
         Pytest's built-in temporary directory fixture.
-    
+
     Yields
     ------
     Path

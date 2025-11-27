@@ -227,6 +227,32 @@ def sample_data_file(tmp_path):
     yield data_file
 
 
+@pytest.fixture
+def gramm_asset_catalog(tmp_path):
+    """Create a temporary catalog directory populated with GRAMM assets.
+
+    Copies files from tests/assets/gramm_catalog to a temporary directory.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Pytest's built-in temporary directory fixture.
+
+    Yields
+    ------
+    Path
+        Path to the temporary catalog directory.
+    """
+    assets_dir = Path(__file__).parent / "assets" / "gramm_catalog"
+    if not assets_dir.exists():
+        pytest.skip("GRAMM assets not found in tests/assets/gramm_catalog")
+
+    catalog_dir = tmp_path / "gramm_catalog"
+    shutil.copytree(assets_dir, catalog_dir)
+
+    yield catalog_dir
+
+
 # Hooks for better test output
 def pytest_configure(config):
     """Configure pytest with custom settings."""

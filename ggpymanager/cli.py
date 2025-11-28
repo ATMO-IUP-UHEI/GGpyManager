@@ -1,20 +1,26 @@
 # src/my_package/cli.py
-import logging
 from pathlib import Path
 
 import click
 
 from ggpymanager import Catalog
-
-# Get the root logger
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+from ggpymanager.utils.logging import set_logger
 
 
 @click.group()
-def main():
+@click.option(
+    "--log-level",
+    default="INFO",
+    show_default=True,
+    help="Logging level: DEBUG, INFO, WARNING, ERROR or CRITICAL",
+)
+@click.pass_context
+def main(ctx, log_level):
     """GGPyManager CLI"""
-    pass
+    # Configure logging for the CLI using the project's logging util
+    set_logger(log_level)
+    ctx.ensure_object(dict)
+    ctx.obj["log_level"] = log_level
 
 
 @main.command()

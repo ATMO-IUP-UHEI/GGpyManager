@@ -79,7 +79,9 @@ class TestCatalogInputFiles:
         # Assert
         assert catalog.input_files == CONFIG.INPUT_FILES["gramm"]
         # Verify all files exist
-        for file_name in catalog.input_files:
+        for file_name in (
+            catalog.input_files["required"] + catalog.input_files["optional"]
+        ):
             file_path = catalog.config_path / file_name
             assert file_path.exists(), f"File {file_name} should exist"
 

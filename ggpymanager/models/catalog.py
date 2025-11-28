@@ -72,7 +72,6 @@ class Catalog:
         logger.info(f"Scanning catalog {self.catalog_path}")
         self._check_input_files()
         self._check_simulations()
-
         self._check_status_log()
 
     def _check_input_files(self) -> None:
@@ -80,16 +79,27 @@ class Catalog:
         self.config_path = self.catalog_path / CONFIG.CONFIG_PATH
         logger.info(f"Checking input files in directory: {self.config_path}")
         self.input_files = CONFIG.INPUT_FILES[self.model]
-        missing_files = []
-        for file in tqdm(self.input_files):
-            file_path = self.config_path / file
-            if not file_path.exists():
-                missing_files.append(file)
-        if missing_files:
+        missing_files = {k: [] for k in self.input_files.keys()}
+        for k in self.input_files:
+            for file in self.input_files[k]:
+                file_path = self.config_path / file
+                if not file_path.exists():
+                    missing_files[k].append(file)
+
+        if missing_files["required"]:
             logger.warning(
-                "The following input files are missing in "
-                f"{self.config_path}:\n{missing_files}"
+                "The following required input files are missing in "
+                f"{self.config_path}:"
             )
+            for file in missing_files["required"]:
+                logger.warning(f" - {file}")
+        elif missing_files["optional"]:
+            logger.info(
+                "The following optional input files are missing in "
+                f"{self.config_path}:"
+            )
+            for file in missing_files["optional"]:
+                logger.info(f" - {file}")
         else:
             logger.info("All required input files are present.")
 

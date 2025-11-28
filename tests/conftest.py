@@ -66,7 +66,11 @@ def gramm_config_files(tmp_catalog_dir):
     config_dir = tmp_catalog_dir / CONFIG.CONFIG_PATH
 
     # Create minimal versions of required GRAMM input files
-    for file_name in CONFIG.INPUT_FILES["gramm"]:
+    gramm_input_files = (
+        CONFIG.INPUT_FILES["gramm"]["required"]
+        + CONFIG.INPUT_FILES["gramm"]["optional"]
+    )
+    for file_name in gramm_input_files:
         file_path = config_dir / file_name
         # Create empty or minimal content files
         if file_name.endswith(".dat") or file_name.endswith(".txt"):

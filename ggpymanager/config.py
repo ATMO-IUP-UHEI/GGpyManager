@@ -17,12 +17,9 @@ INPUT_FILES = {
         "required": [
             "meteopgt.all",
             "GRAMM.geb",
-            "DispNrGramm.txt",
             "GRAMMin.dat",
-            "PercentGramm.txt",
             "IIN.dat",
             "Max_Proc.txt",
-            "RoughnessUsed.txt",
         ],
         "optional": [
             "ggeom.asc",
@@ -34,8 +31,6 @@ INPUT_FILES = {
             "meteopgt.all",
             "GRAL.geb",
             "in.dat",
-            "GRAL_FlowFields.txt",
-            "Integrationtime.txt",
             "Max_Proc.txt",
         ],
         "optional": [
@@ -44,6 +39,8 @@ INPUT_FILES = {
             "landuse.asc",
             "ggeom.asc",
             # GRAL files
+            "GRAL_FlowFields.txt",
+            "Integrationtime.txt",
             "buildings.dat",
             "micro_vert_layers.txt",
             "cadastre.dat",

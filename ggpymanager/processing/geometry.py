@@ -10,6 +10,8 @@ import xarray as xr
 import rioxarray  # noqa: F401
 from ggpymanager import utils
 
+logger = logging.getLogger(__name__)
+
 
 def create_domain_geometry(
     name: Literal["gramm", "gral"], config: Dict[str, Any]
@@ -78,7 +80,7 @@ def create_domain_grid(
     dx = config["domain"][name]["dx"]
     dy = config["domain"][name]["dy"]
 
-    logging.info(
+    logger.info(
         f"Creating {name} grid with width {maxx - minx} m "
         f"and height {maxy - miny} m"
     )
@@ -149,7 +151,7 @@ def smooth_elevation(
     xr.DataArray
         Smoothed elevation data.
     """
-    logging.info(
+    logger.info(
         f"Max gradient before smoothing: {gradient(elevation).max().values:.1f} m"
     )
 
@@ -162,7 +164,7 @@ def smooth_elevation(
         }
     ] = 0
     min_border_elevation = elevation.where(boundary_mask).min()
-    logging.info(f"Min elevation at the boundaries: {min_border_elevation.values:.1f}")
+    logger.info(f"Min elevation at the boundaries: {min_border_elevation.values:.1f}")
 
     weights = xr.zeros_like(elevation)
     for i in range(1, n_grid_cells_border + 1):
@@ -179,7 +181,7 @@ def smooth_elevation(
 
     # Smooth gradients
     elevation = elevation.rolling({"x": n_grid_cells, "y": n_grid_cells}).mean()
-    logging.info(
+    logger.info(
         f"Max gradient after smoothing: {gradient(elevation).max().values:.1f} m"
     )
 
@@ -451,10 +453,10 @@ def create_ggeom_dataset(
         ["z_stag"],
         np.append([0], np.cumsum(cell_height)) + min_elevation.values,
     )
-    logging.info(
+    logger.info(
         f"Elevation minimum {min_elevation:.2f} m and maximum {max_elevation:.2f} m."
     )
-    logging.info(f"Grid maximum {geom['Z'].max().values:.2f} m")
+    logger.info(f"Grid maximum {geom['Z'].max().values:.2f} m")
 
     geom["AH"] = elevation
 

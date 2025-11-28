@@ -280,6 +280,9 @@ class Catalog:
                 ds[key] = (("sim_id", "time"), arr)
             else:
                 ds[key] = (("sim_id",), values)
+        for key in ds.data_vars:
+            if ds[key].dtype == np.float64:
+                ds[key] = ds[key].astype(np.float32)
 
         # Add disk space variable
         logger.info("Calculating disk space usage for each simulation directory.")

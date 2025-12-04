@@ -182,6 +182,20 @@ def get_measurement_locations_in_model(
         Dataset containing the x_id, y_id, z_id, and height information for each
         station.
     """
+    # Filter out stations outside the domain
+    measurements = measurements.where(measurements["in_gral_domain"], drop=True)
+    # Set height to altitude - geometry["oro"] for stations where height is nan
+    mask = measurements["height"].isnull()
+    surface_elevation = geometry["oro"].interp(x=measurements["x"], y=measurements["y"])
+
+    measurements["height"].loc[{"station": mask}] = (
+        measurements["altitude"] - surface_elevation.loc[{"station": mask}]
+    )
+    mask = measurements["height"].isnull()
+    assert mask.sum().values == 0, (
+        f"({mask.sum().values}) stations have neither height or altitude information: "
+        f"{measurements['station'][mask].values}"
+    )
     model_stations = convert_locations_to_grid(
         measurements["x"],
         measurements["y"],
@@ -558,9 +572,7 @@ def process_concentration_from_model(
         timer = datetime.now()
         batch_end = min(batch_start + batch_size, len(missing_dir_list))
         batch_dirs = missing_dir_list[batch_start:batch_end]
-        batch_sim_indices = [
-            int(d.name.removeprefix("sim_")) for d in batch_dirs
-        ]
+        batch_sim_indices = [int(d.name.removeprefix("sim_")) for d in batch_dirs]
 
         logging.info(
             f"Processing simulations {batch_start + 1} to {batch_end} "

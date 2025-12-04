@@ -8,6 +8,8 @@ import xarray as xr
 from ggpymanager.utils.decorators import check_docstring_dims
 from ggpymanager.io.readers import load_catalog_filter
 
+logger = logging.getLogger(__name__)
+
 
 @check_docstring_dims
 def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
@@ -40,7 +42,7 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
     for i, min_rad in enumerate(min_rads):
         above_rad_threshold = radiation >= min_rad
         radiation_index[above_rad_threshold] = i
-        logging.info(
+        logger.info(
             "Radiation larger {:>5} W/m²: {:>4} entries".format(
                 min_rad, above_rad_threshold.sum().values
             )
@@ -50,7 +52,7 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
     for i, min_wind_speed in enumerate(catalog_filter.index):
         above_wind_threshold = wind_speed >= float(min_wind_speed)
         wind_speed_index[above_wind_threshold] = i
-        logging.info(
+        logger.info(
             "Wind speed larger {} m/s: {:>4} entries".format(
                 min_wind_speed, above_wind_threshold.sum().values
             )

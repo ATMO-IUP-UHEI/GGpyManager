@@ -18,6 +18,8 @@ from tqdm import tqdm
 import ggpymanager.config as CONFIG
 from ggpymanager import io, models
 
+logger = logging.getLogger(__name__)
+
 
 def _get_dir_size(sim_dir: Path) -> int:
     """Get disk space for a single directory.
@@ -42,7 +44,7 @@ def _get_dir_size(sim_dir: Path) -> int:
         size_kb = int(result.stdout.split()[0])
         return size_kb * 1024
     except (subprocess.CalledProcessError, ValueError, IndexError) as e:
-        logging.warning(f"Error calculating disk space for {sim_dir}: {e}")
+        logger.warning(f"Error calculating disk space for {sim_dir}: {e}")
         return 0
 
 
@@ -67,34 +69,44 @@ class Catalog:
             raise ValueError(f"Model must be 'gramm' or 'gral', got {model}")
         self.model = model
         self.catalog_path = Path(catalog_path)
-        logging.info(f"Scanning catalog {self.catalog_path}")
+        logger.info(f"Scanning catalog {self.catalog_path}")
         self._check_input_files()
         self._check_simulations()
-
         self._check_status_log()
 
     def _check_input_files(self) -> None:
         """Check if all required input files are present in the config directory."""
         self.config_path = self.catalog_path / CONFIG.CONFIG_PATH
-        logging.info(f"Checking input files in directory: {self.config_path}")
+        logger.info(f"Checking input files in directory: {self.config_path}")
         self.input_files = CONFIG.INPUT_FILES[self.model]
-        missing_files = []
-        for file in tqdm(self.input_files):
-            file_path = self.config_path / file
-            if not file_path.exists():
-                missing_files.append(file)
-        if missing_files:
-            logging.warning(
-                "The following input files are missing in "
-                f"{self.config_path}:\n{missing_files}"
+        missing_files = {k: [] for k in self.input_files.keys()}
+        for k in self.input_files:
+            for file in self.input_files[k]:
+                file_path = self.config_path / file
+                if not file_path.exists():
+                    missing_files[k].append(file)
+
+        if missing_files["required"]:
+            logger.warning(
+                "The following required input files are missing in "
+                f"{self.config_path}:"
             )
+            for file in missing_files["required"]:
+                logger.warning(f" - {file}")
+        elif missing_files["optional"]:
+            logger.info(
+                "The following optional input files are missing in "
+                f"{self.config_path}:"
+            )
+            for file in missing_files["optional"]:
+                logger.info(f" - {file}")
         else:
-            logging.info("All required input files are present.")
+            logger.info("All required input files are present.")
 
     def _check_simulations(self) -> None:
         """Scan simulation directory and count completed simulations and wind files."""
         self.simulation_path = self.catalog_path / CONFIG.SIMULATION_PATH
-        logging.info(f"Checking simulations in directory: {self.simulation_path}")
+        logger.info(f"Checking simulations in directory: {self.simulation_path}")
 
         self.simulation_entries = []
         self.sim_ids = []
@@ -102,7 +114,7 @@ class Catalog:
         self.n_wind_files = 0
 
         if not self.simulation_path.exists():
-            logging.warning(f"Simulation path does not exist: {self.simulation_path}")
+            logger.warning(f"Simulation path does not exist: {self.simulation_path}")
             return
 
         for sim_dir in tqdm(sorted(self.simulation_path.iterdir())):
@@ -122,13 +134,13 @@ class Catalog:
             if wind_file.exists():
                 self.n_wind_files += 1
 
-        logging.info(
+        logger.info(
             f"Found {len(self.simulation_entries)} simulation entries in the catalog."
         )
-        logging.info(
+        logger.info(
             f"{self.n_completed_simulations} simulations are marked as completed."
         )
-        logging.info(f"{self.n_wind_files} simulations have computed wind fields.")
+        logger.info(f"{self.n_wind_files} simulations have computed wind fields.")
 
     def _is_simulation_completed(self, sim_dir: Path) -> bool:
         """Check if a simulation is marked as completed based on stdout file.
@@ -155,23 +167,23 @@ class Catalog:
                 in stdout_content
             )
         except (IOError, OSError) as e:
-            logging.warning(f"Error reading stdout file {stdout_file}: {e}")
+            logger.warning(f"Error reading stdout file {stdout_file}: {e}")
             return False
 
     def _check_status_log(self) -> None:
         """Check for existing status log or create a new one."""
         self.status_log_path = self.catalog_path / CONFIG.STATUS_LOG_FILE_NAME
         if self.status_log_path.exists():
-            logging.info(f"Status log found at {self.status_log_path}")
+            logger.info(f"Status log found at {self.status_log_path}")
             ds = xr.load_dataset(self.status_log_path)
-            logging.info("Status log loaded successfully.")
+            logger.info("Status log loaded successfully.")
         else:
-            logging.info("No status log found. Creating a new one.")
+            logger.info("No status log found. Creating a new one.")
             data = self._get_summary()
             ds = self._create_status_log(data)
             ds.to_netcdf(self.status_log_path)
-            logging.info(f"Status log created at {self.status_log_path}")
-        logging.info(ds)
+            logger.info(f"Status log created at {self.status_log_path}")
+        logger.info(ds)
 
     def _get_summary(self) -> dict:
         """Parse stdout files and extract summary data.
@@ -185,7 +197,7 @@ class Catalog:
             sim_dir / CONFIG.STD_OUT_FILE_NAME[self.model]
             for sim_dir in self.simulation_entries
         ]
-        logging.info(f"Parsing {self.model} stdout files for summary.")
+        logger.info(f"Parsing {self.model} stdout files for summary.")
         logs = []
         for file in tqdm(stdout_files):
             if file.exists():
@@ -268,9 +280,12 @@ class Catalog:
                 ds[key] = (("sim_id", "time"), arr)
             else:
                 ds[key] = (("sim_id",), values)
+        for key in ds.data_vars:
+            if ds[key].dtype == np.float64:
+                ds[key] = ds[key].astype(np.float32)
 
         # Add disk space variable
-        logging.info("Calculating disk space usage for each simulation directory.")
+        logger.info("Calculating disk space usage for each simulation directory.")
         disk_space = self._calculate_disk_space()
         ds["disk_space_bytes"] = (("sim_id",), disk_space)
         ds["disk_space_bytes"].attrs = {

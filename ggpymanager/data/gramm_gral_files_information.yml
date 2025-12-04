@@ -1,0 +1,670 @@
+# =====================================================================
+# GRAMM V22.09 / GRAL-ST-ROG Input and Output Files
+# Complete Reference Guide
+# =====================================================================
+# Version: GRAMM V22.09 with GRAL-ST-ROG (based on GRAL 20.01 branch)
+# Last Updated: 2023
+# =====================================================================
+
+model_system:
+  name: "GRAMM/GRAL-ST-ROG"
+  gramm_version: "V22.09"
+  gral_version: "ST-ROG (based on GRAL 20.01)"
+  note: "GRAL-ST-ROG is the scientific branch with different physics than standard GRAL V22.09"
+
+# =====================================================================
+# SHARED / INTERFACE FILES (GRAMM output → GRAL input)
+# =====================================================================
+interface_files:
+  
+  meteopgt.all:
+    description: "Categorized meteorological input file with wind speed, direction, stability class, and frequency data for each weather situation"
+    type: input
+    used_by: [GRAMM, GRAL-ST-ROG]
+    required: true
+    format: "ASCII text, tab/space separated"
+    effect_if_missing: "Model cannot run without meteorological data"
+    content: |
+      Line 1: Anemometer height (m), data type (0=categorized, 1=raw), sector width
+      Line 3+: Each line = one weather situation
+      Columns: wind direction sector/angle, wind speed (m/s), stability class (1-7), frequency (per 1000)
+    interface: "GRAMM uses for initialization; GRAL reads for dispersion classification"
+    reference: "[attached_file:1] Chapter 9.4.1.6, [attached_file:3] Chapter 17.2.1.2"
+
+  ggeom.asc:
+    description: "GRAMM grid geometry file containing all grid information, cell dimensions, volumes, and areas for terrain-following coordinates"
+    type: input/output
+    used_by: [GRAMM, GRAL-ST-ROG]
+    required: true (when coupling with GRAMM)
+    format: "ASCII text, binary-like structure"
+    created_by: "GUI when GRAMM domain is defined"
+    effect_if_missing: "Cannot establish terrain-following grid; coupling fails"
+    content: "NX, NY, NZ, coordinate arrays, volumes (VOL), surface areas (AREAX/Y/Z), cell heights (ZSP), grid spacing (DDX/DDY), corner heights (AHE)"
+    interface: "GRAMM creates during grid generation; GRAL reads for terrain coupling"
+    reference: "[attached_file:1] Chapter 9.4.1.3, [attached_file:3] Chapter 17.2.1.12"
+
+  landuse.asc:
+    description: "Land use and soil parameter file with spatially distributed CORINE categories or user-defined properties"
+    type: input/output
+    used_by: [GRAMM, GRAL-ST-ROG]
+    required: false (optional for spatial variability)
+    format: "ASCII text, GRAMM-specific format"
+    effect_if_missing: "Homogeneous surface properties assumed (albedo=0.1, soil moisture=0.15, emissivity=0.9, roughness from GRAMMein.txt)"
+    content: "Soil density (RHOB), thermal conductivity (ALAMBDA), roughness (Z0), soil moisture (FW), emissivity (EPSG), albedo (ALBEDO)"
+    interface: "GRAMM uses for surface energy balance; GRAL reads for surface roughness"
+    reference: "[attached_file:1] Chapter 9.4.1.4, [attached_file:3] Chapter 17.2.1.13"
+
+  "*.wnd":
+    description: "3D wind field files (u, v, w components) for each weather situation in binary format"
+    type: output
+    created_by: GRAMM
+    used_by: GRAL-ST-ROG
+    required: true (for complex terrain)
+    format: "Binary with optional header (cms as Int16)"
+    filename_pattern: "00001.wnd, 00002.wnd, ... (5-digit weather situation)"
+    content: "Header: -1, NI, NJ, NK, grid_size; Data: U, V, W arrays in cm/s as Int16"
+    why_created: "Contains GRAMM mesoscale flow field for GRAL microscale nesting"
+    interface: "GRAMM output → GRAL input for complex terrain dispersion"
+    reference: "[attached_file:1] Chapter 9.4.2.1, [attached_file:3] Chapter 17.2.1.12"
+
+  "*.scl, *.obl, *.ust":
+    description: "Zipped archive containing stability class, Obukhov length, and friction velocity fields"
+    type: output
+    created_by: GRAMM
+    used_by: GRAL-ST-ROG
+    required: false (optional for enhanced turbulence)
+    format: "Zipped binary files (.scl extension containing .scl, .obl, .ust)"
+    filename_pattern: "00001.scl (zipped archive)"
+    content: |
+      .ust: friction velocity (m/s × 1000 as Int16)
+      .obl: Obukhov length (m × 10 as Int16)
+      .scl: stability class (1-7 as byte)
+    why_created: "Provides surface-layer parameters for GRAL turbulence calculations"
+    interface: "GRAMM output → GRAL reads if available for local stability"
+    reference: "[attached_file:1] Chapter 9.4.2.2, [attached_file:3] Chapter 17.2.1.8"
+
+# =====================================================================
+# GRAMM V22.09 SPECIFIC INPUT FILES
+# =====================================================================
+gramm_input_files:
+
+  GRAMM.geb:
+    description: "Main GRAMM grid definition file with domain boundaries and grid cell counts"
+    type: input
+    required: true
+    format: "ASCII text with ! separators"
+    content: "NX, NY, NZ (grid cells), Xmin, Xmax, Ymin, Ymax (domain boundaries in m)"
+    effect_if_missing: "GRAMM cannot define computational grid"
+    reference: "[attached_file:1] Chapter 9.4.1.1"
+
+  GEOM.in:
+    description: "Geometry input file with topography path, first cell height, and vertical stretching factor"
+    type: input
+    required: true
+    used_by: GUI
+    content: "Path to DEM file, dz_first_layer (m), stretching_factor"
+    effect_if_missing: "GUI cannot generate GRAMM grid"
+    reference: "[attached_file:1] Chapter 9.4.1.2"
+
+  GRAMMein.txt:
+    description: "GRAMM control file with basic settings and options"
+    type: input
+    required: true
+    format: "ASCII text, 6 lines"
+    content: |
+      Line 1: Version info (not used)
+      Line 2: Use meteopgt.all? (y/n)
+      Line 3: Roughness length (m)
+      Line 4: Start situation number, boundary smoothing cells
+      Line 5: Write steadystate files? (0/1)
+      Line 6: Write intermediate files? (0/>0)
+    effect_if_missing: "GRAMM cannot determine operational mode"
+    reference: "[attached_file:1] Chapter 9.4.1.5"
+
+  IIN.dat:
+    description: "Main GRAMM control file with all physical and numerical parameters"
+    type: input
+    required: true
+    format: "ASCII text, ~27 lines"
+    content: |
+      Computation date (YYMMDD), start time (hhmm)
+      Max time step (s), modeling time (s), output interval (s)
+      Initial humidity, air/surface temperatures (K)
+      Deep soil temperature (K), latitude (deg)
+      Radiation update interval, compute flags (U/V/W/PN/T/etc.)
+      Relaxation factors (velocity, scalars)
+      Boundary conditions (1 or 6), output format
+    effect_if_missing: "GRAMM cannot run simulation"
+    reference: "[attached_file:1] Chapter 9.4.1.8"
+
+  ReceptorGRAMM.dat:
+    description: "Optional receptor point definitions for time series output at specific locations"
+    type: input
+    required: false
+    format: "ASCII text"
+    content: "Line 1: number of receptors; Following lines: number, x, y, z_agl, name"
+    effect_if_missing: "No receptor-specific GRAMM output generated"
+    output_file: "GRAMM.dat"
+    reference: "[attached_file:1] Chapter 9.4.1.9"
+
+  CustomInit.txt:
+    description: "Optional custom initialization file for user-defined meteorological conditions per situation"
+    type: input
+    required: false
+    format: "Copy of meteopgt.all with 10 additional columns"
+    content: |
+      Standard meteopgt.all columns plus:
+      Snow height (m), air temp at sea level (K), soil temp (K), soil core temp (K),
+      water temp diff (K), humidity (%), inversion height (m), air gradient (K/m),
+      inversion gradient (K/m), soil gradient (K/m)
+    effect_if_missing: "Standard initialization from meteopgt.all used"
+    reference: "[attached_file:1] Chapter 9.4.1.11"
+
+  MaxProc.txt:
+    description: "Optional file to limit number of CPU cores used for parallel computation"
+    type: input
+    required: false
+    format: "Single integer value"
+    effect_if_missing: "All available CPU cores are used by default"
+    reference: "[attached_file:1] Chapter 9.4.1.10"
+
+# =====================================================================
+# GRAMM V22.09 OUTPUT FILES
+# =====================================================================
+gramm_output_files:
+
+  problemreport.txt:
+    description: "Diagnostic file reporting mass divergence issues and maximum wind speeds"
+    type: output
+    created: "If numerical problems detected"
+    contains: "Mass divergence values, max U/V/W speeds"
+    why_created: "Quality control indicator for numerical stability"
+    usage: "Check after GRAMM run; values appended for each situation"
+    reference: "[attached_file:1] Chapter 9.4.2.3"
+
+  GRAMM.dat:
+    description: "Time series output at receptor points (wind speed, direction, temperature)"
+    type: output
+    created: "If ReceptorGRAMM.dat exists and not using meteopgt.all"
+    format: "ASCII text, space-separated columns"
+    contains: "For each receptor: wind_speed (m/s), wind_direction (deg), temperature (K)"
+    why_created: "Provides GRAMM results at specific monitoring locations"
+    usage: "Values appended for each output interval"
+    reference: "[attached_file:1] Chapter 9.4.2.4"
+
+  "*steadystate.txt":
+    description: "Steady-state convergence indicator fields (VDI 3783-7 criterion)"
+    type: output
+    created: "If enabled in GRAMMein.txt line 5"
+    filename_pattern: "00001steadystate.txt, 00002steadystate.txt, ..."
+    format: "ESRI ASCII raster"
+    contains: "Values 0-7 indicating which components (U/V/W) met steady-state criterion"
+    why_created: "Quality assurance for VDI guideline compliance"
+    reference: "[attached_file:1] Chapter 9.4.2.5"
+
+# =====================================================================
+# GRAL-ST-ROG SPECIFIC INPUT FILES
+# =====================================================================
+gral_strog_input_files:
+
+  GRAL.geb:
+    description: "Main GRAL grid definition file with concentration and flow field grid parameters"
+    type: input
+    required: true
+    format: "ASCII text with ! separators"
+    content: |
+      Flow field grid sizes (dx, dy in m)
+      Vertical grid: dz_first, stretching_factor [optional: height, factor pairs]
+      Concentration grid cells (NX, NY)
+      Number of horizontal slices
+      Source groups to compute (comma-separated)
+      Domain boundaries (West, East, South, North in m)
+    effect_if_missing: "GRAL cannot define computational domain"
+    reference: "[attached_file:3] Chapter 17.2.1.1"
+
+  in.dat:
+    description: "Main GRAL control file with all simulation parameters"
+    type: input
+    required: true
+    format: "ASCII text, ~18 lines"
+    content: |
+      Line 1: Particles/second
+      Line 2: Dispersion time (s)
+      Line 3: Steady-state (1) or transient (0)
+      Line 4: Meteo input flag (4 or 5)
+      Line 5: Receptor points flag
+      Line 6: Roughness length (m)
+      Line 7: Latitude (deg)
+      Line 8: Plume meandering (Y/N)
+      Line 9: Pollutant (not used, see Pollutant.txt)
+      Line 10: Slice heights (m, comma-separated)
+      Line 11: Vertical concentration grid extent (m)
+      Line 12: Start situation number
+      Line 13: Building treatment (0/1/2, subdomain cells)
+      Line 14: Output format flag
+      Line 15: Compression mode
+      Line 16: Wait for keystroke
+      Line 17: ASCII results flag
+      Line 18: Transient flags (not used)
+    effect_if_missing: "GRAL cannot run"
+    reference: "[attached_file:3] Chapter 17.2.1.5"
+
+  Pollutant.txt:
+    description: "Pollutant definition file with name, wet deposition parameters, and decay rates"
+    type: input
+    required: true
+    format: "ASCII text"
+    content: |
+      Line 1: Pollutant name (use 'odour' for odour calculations)
+      Lines 2-3: Wet deposition parameters (alpha, beta, defaults=0)
+      Line 4+: Decay rates per source group (s^-1)
+    effect_if_missing: "GRAL cannot define pollutant properties"
+    reference: "[attached_file:3] Chapter 17.2.1.26"
+
+  mettimeseries.dat:
+    description: "Meteorological time series for transient GRAL mode"
+    type: input
+    required: true (transient mode only)
+    format: "ASCII text, tab/semicolon/blank separated"
+    content: "Date, time, wind_speed, wind_direction, stability_class (hourly or sub-hourly)"
+    effect_if_missing: "Transient simulation cannot run"
+    reference: "[attached_file:3] Chapter 17.2.1.25"
+
+  Emissionstimeseries.txt:
+    description: "Hourly emission modulation factors for each source group in transient mode"
+    type: input
+    required: false (optional for transient)
+    format: "ASCII text, tab-separated"
+    content: "Header: Date, Hour, SG1, SG2, ...; Data: date, hour, factor_SG1, factor_SG2, ..."
+    effect_if_missing: "Diurnal/seasonal presets used instead"
+    usage: "Overrides EmissionModDiurnal.txt and EmissionModSeasonal.txt"
+    reference: "[attached_file:3] Chapter 17.2.1.24, [attached_file:4] Chapter 13.1.2"
+
+  Precipitation.txt:
+    description: "Precipitation time series for wet deposition in transient mode"
+    type: input
+    required: false (only if wet deposition enabled)
+    format: "ASCII text, tab-separated"
+    content: "Day.Month, Hour, Precipitation(mm/h)"
+    effect_if_missing: "Wet deposition cannot be computed"
+    reference: "[attached_file:3] Chapter 17.2.1.27, [attached_file:4] Chapter 13.2"
+
+  Microvertlayers.txt:
+    description: "Vertical layer definition for prognostic microscale flow field model"
+    type: input
+    required: true (if prognostic wind field used)
+    content: "Number of vertical layers for prognostic calculations"
+    effect_if_missing: "Prognostic wind field cannot be computed"
+    reference: "[attached_file:3] Chapter 17.2.1.16"
+
+  point.dat:
+    description: "Point source emissions (stacks) with coordinates, emission rates, and stack parameters"
+    type: input
+    required: false
+    format: "ASCII text, 19+ columns"
+    content: |
+      Header (2 lines)
+      Data: x, y, z_agl, emission(kg/h), (unused×3), exit_velocity(m/s), diameter(m),
+      exit_temp(K), source_group, PM2.5_share(%), PM10_share(%), PM30_diameter(μm),
+      density(kg/m³), vd_PM2.5, vd_PM10, vd_PM30 (m/s), mode(1/2), [Temp/Vel references]
+    effect_if_missing: "No point sources in simulation"
+    reference: "[attached_file:3] Chapter 17.2.1.6"
+
+  line.dat:
+    description: "Line source emissions (roads, linear sources)"
+    type: input
+    required: false
+    format: "ASCII text, 26+ columns"
+    content: |
+      Header (5 lines)
+      Data: name, section, source_group, x1, y1, z1, x2, y2, z2, width(m), 
+      vert_ext(m), (unused×2), emission(kg/h/km), (unused×4), 
+      PM2.5_share, PM10_share, PM30_diam, density, vd_PM2.5, vd_PM10, vd_PM30, mode
+    effect_if_missing: "No line sources in simulation"
+    reference: "[attached_file:3] Chapter 17.2.1.8"
+
+  cadastre.dat:
+    description: "Area source emissions (diffuse emissions)"
+    type: input
+    required: false
+    format: "ASCII text, 17+ columns"
+    content: |
+      Header (1 line)
+      Data: x, y, z_agl, dx(m), dy(m), dz(m), emission(kg/h), (unused×3),
+      source_group, PM2.5_share, PM10_share, PM30_diam, density, vd_PM2.5, vd_PM10, vd_PM30, mode
+    effect_if_missing: "No area sources in simulation"
+    reference: "[attached_file:3] Chapter 17.2.1.7"
+
+  portals.dat:
+    description: "Tunnel portal sources with jet momentum"
+    type: input
+    required: false
+    format: "ASCII text, 19+ columns"
+    content: |
+      Data: x1_corner1, y1_corner1, x2_corner2, y2_corner2, z_lower(m), z_upper(m),
+      emission(kg/h), (unused×3), source_group, PM2.5/PM10_shares, PM30_params,
+      deposition_velocities, mode, [Temp/Vel references]
+    effect_if_missing: "No tunnel portal sources"
+    reference: "[attached_file:3] Chapter 17.2.1.9"
+
+  buildings.dat:
+    description: "Building/obstacle coordinates with heights for flow field calculations"
+    type: input
+    required: false
+    format: "ASCII text, 4 columns"
+    content: "x(m), y(m), z_lower(m; not used), height(m; negative=absolute height)"
+    effect_if_missing: "No buildings considered; diagnostic wind field only"
+    usage: "Positive heights = relative to ground; Negative = absolute above sea level"
+    reference: "[attached_file:3] Chapter 17.2.1.10"
+
+  Receptor.dat:
+    description: "Receptor point locations for concentration time series output"
+    type: input
+    required: false
+    format: "ASCII text"
+    content: "Line 1: total_number; Following: receptor_number, x, y, z_agl"
+    effect_if_missing: "No receptor time series generated"
+    output_file: "Zeitreihe.dat or ReceptorTimeseriesTransient.txt"
+    reference: "[attached_file:3] Chapter 17.2.1.14"
+
+  vegetation.dat:
+    description: "Vegetation area definitions for deposition and flow modification"
+    type: input
+    required: false
+    format: "ASCII text with header lines starting with 'D'"
+    content: |
+      D-lines: total_height(m), trunk_height(%), LAD_trunk(m²/m³), LAD_crown(m²/m³), coverage(%)
+      Data: x(m), y(m)
+    effect_if_missing: "No vegetation effects considered"
+    reference: "[attached_file:3] Chapter 17.2.1.11"
+
+  GRALtopofile.txt:
+    description: "High-resolution GRAL topography (finer than GRAMM) in ESRI ASCII format"
+    type: input
+    required: false (optional for detailed terrain)
+    format: "ESRI ASCII raster"
+    content: "High-resolution DEM matching GRAL domain extent"
+    effect_if_missing: "GRAMM topography interpolated to GRAL grid"
+    usage: "Enables fine-scale terrain representation within GRAL"
+    reference: "[attached_file:3] Chapter 17.2.1.28"
+
+  TimeSeriesPointSourceVel.txt:
+  TimeSeriesPointSourceTemp.txt:
+  TimeSeriesPortalSourceVel.txt:
+  TimeSeriesPortalSourceTemp.txt:
+    description: "Time series of exit velocities (m/s) and temperature differences (K) for point/portal sources"
+    type: input
+    required: false (transient mode only)
+    format: "ASCII text, tab-separated"
+    content: "Header with preset names; Data: date, time, values for each preset"
+    effect_if_missing: "Constant values from point.dat/portals.dat used"
+    reference: "[attached_file:3] Chapters 17.2.1.29-32, [attached_file:4] Chapter 11.11.11"
+
+  Relaxationfactors.txt:
+    description: "Optional relaxation factors for prognostic flow field solver"
+    type: input
+    required: false
+    format: "Two values: velocity_relaxation, pressure_relaxation"
+    effect_if_missing: "Defaults: 0.1 for velocity, 1.0 for pressure"
+    reference: "[attached_file:3] Chapter 17.2.1.17"
+
+  Integrationtime.txt:
+    description: "Min and max iterations for prognostic flow field solver"
+    type: input
+    required: false
+    format: "Two integer values"
+    effect_if_missing: "Defaults: 100 min, 500 max iterations"
+    reference: "[attached_file:3] Chapter 17.2.1.19"
+
+  windfeld.txt:
+    description: "Optional path override for reading GRAMM wind field files"
+    type: input
+    required: false
+    format: "Two lines: Windows path (line 1), Linux path (line 2)"
+    effect_if_missing: "GRAMM wind fields read from project folder"
+    reference: "[attached_file:3] Chapter 17.2.1.38"
+
+  GFFFilePath.txt:
+    description: "Optional path override for reading/writing GRAL microscale flow fields"
+    type: input
+    required: false
+    format: "Two lines: Windows path, Linux path"
+    effect_if_missing: "Flow fields stored in project folder"
+    reference: "[attached_file:3] Chapter 17.2.1.39"
+
+# =====================================================================
+# GRAL-ST-ROG OUTPUT FILES
+# =====================================================================
+gral_strog_output_files:
+
+  "*.con":
+    description: "2D concentration fields for each situation, slice, and source group"
+    type: output
+    created: always
+    format: "Binary (float) with Int32 header = -1"
+    filename_pattern: "00001-101.con = situation 00001, slice 1, source group 01"
+    contains: "Gridded concentration values (μg/m³ or OU/m³)"
+    why_created: "Main dispersion modeling output for post-processing and mapping"
+    compression: "Optional .grz format (zipped)"
+    reference: "[attached_file:3] Chapter 17.2.2.1"
+
+  "*.odr":
+    description: "Odour-specific output files with concentration variance for odour-hour calculations"
+    type: output
+    created: "If pollutant = 'odour'"
+    format: "Binary"
+    filename_pattern: "00001-101.odr"
+    contains: "Concentration fluctuation intensity data"
+    why_created: "Required by GUI for computing 90th percentile odour concentrations and odour hours"
+    compression: "Optional .grz format"
+    reference: "[attached_file:3] Chapter 17.2.2.2"
+
+  "*.dep":
+    description: "Deposition fields (dry/wet) for each situation and source group"
+    type: output
+    created: "If deposition enabled"
+    format: "Binary"
+    filename_pattern: "00001-01.dep"
+    contains: "Deposited mass per grid cell (mg/m² or kg/ha)"
+    why_created: "Quantifies pollutant deposition on surfaces"
+    compression: "Optional .grz format"
+    reference: "[attached_file:3] Chapter 17.2.2.3"
+
+  "*.gff":
+    description: "3D microscale flow field files (GRAL's own prognostic wind fields)"
+    type: output
+    created: "If prognostic wind field computed"
+    format: "Binary, zipped"
+    filename_pattern: "00001.gff"
+    contains: "U, V, W wind components on GRAL microscale grid"
+    why_created: "Stores building-influenced flow fields for reuse or analysis"
+    note: "Different from GRAMM .wnd files; these are GRAL's microscale fields"
+    reference: "[attached_file:3] Chapter 17.2.2.4"
+
+  GRALgeometries.txt:
+    description: "Metadata file linking flow fields to topography/building geometry"
+    type: output
+    created: "If prognostic flow fields computed"
+    contains: "Topography and building information for .gff files"
+    why_created: "Ensures correct assignment of flow fields to geometry"
+    reference: "[attached_file:3] Chapter 17.2.2.5"
+
+  Zeitreihe.dat:
+    description: "Receptor concentration time series (steady-state mode, GRAL ≤20.01)"
+    type: output
+    created: "If receptors defined (steady-state mode)"
+    format: "ASCII text, space-separated"
+    contains: "Concentrations at each receptor for each situation and source group"
+    why_created: "Provides time series at monitoring locations"
+    note: "Deprecated in favor of ReceptorTimeseries.dat"
+    reference: "[attached_file:3] Chapter 17.2.2.6"
+
+  ReceptorTimeseries.dat:
+    description: "Receptor concentration time series (steady-state mode, GRAL ≥20.09)"
+    type: output
+    created: "If receptors defined (steady-state)"
+    format: "ASCII text, tab-separated, invariant culture"
+    contains: |
+      Header: receptor names, source groups, X/Y/Z coordinates
+      Data: one line per situation with concentrations
+    why_created: "Modern format for receptor time series with metadata"
+    reference: "[attached_file:3] Chapter 17.2.2.7"
+
+  ReceptorTimeseriesTransient.txt:
+    description: "Receptor concentration and meteorology time series (transient mode)"
+    type: output
+    created: "Transient mode only"
+    format: "ASCII text, tab-separated"
+    contains: |
+      Header: receptor info, parameters (concentration, U, V, SC, BLH)
+      Data: datetime, concentration(μg/m³), meteorology
+      Footer: Estimated statistical error per receptor
+    why_created: "Comprehensive transient simulation output with uncertainty estimates"
+    reference: "[attached_file:3] Chapter 17.2.2.9, [attached_file:4] Chapter 15.5.1"
+
+  GRALMeteozeitreihe.dat:
+    description: "Meteorology at receptor points (wind vectors, stability, boundary layer height)"
+    type: output
+    created: "If receptors defined"
+    format: "ASCII text, tab-separated, with header"
+    contains: |
+      Header: Parameters (U, V, SC, BLH), receptor names and coordinates
+      Data: one line per situation
+    why_created: "Provides local meteorology from GRAL's flow field at receptors"
+    reference: "[attached_file:3] Chapter 17.2.2.8"
+
+  Buildingheights.txt:
+    description: "Rasterized building heights as used in GRAL simulation"
+    type: output
+    created: "If flag in in.dat line 14 has |value| > 1"
+    format: "ESRI ASCII raster"
+    contains: "Building heights (m) on GRAL flow field grid"
+    why_created: "Diagnostic output showing actual rasterized buildings in model"
+    usage: "Quality control for building representation"
+    reference: "[attached_file:3] Chapter 17.2.2.10"
+
+  GRALtopography.txt:
+    description: "GRAL's actual topography as used in simulation"
+    type: output
+    created: "If empty GRALtopography.txt file exists in project folder"
+    format: "ESRI ASCII raster"
+    contains: "Terrain elevation (m) on GRAL grid"
+    why_created: "Shows exact terrain representation in model"
+    reference: "[attached_file:3] Chapter 17.2.2.11"
+
+  VerticalConcentrations.txt:
+    description: "3D concentration field for all vertical layers (transient mode)"
+    type: output
+    created: "Transient mode, when computation finished"
+    format: "ASCII text"
+    contains: "Concentration values for GRAL's internal 3D concentration grid"
+    why_created: "Complete 3D concentration field for detailed analysis"
+    reference: "[attached_file:3] Chapter 17.2.2.12"
+
+  VerticalConcentrations.tmp:
+  TransientConcentrations.tmp:
+    description: "Temporary 3D concentration checkpoint files (transient mode)"
+    type: output (temporary)
+    created: "Every 24 situations in transient mode"
+    contains: "Current 3D concentration state for restart capability"
+    why_created: "Enables restart of interrupted transient simulations"
+    usage: "Auto-loaded on restart; deleted when simulation completes"
+    reference: "[attached_file:3] Chapter 17.2.2.13"
+
+  RoughnessLengthsGral.txt:
+    description: "Spatially variable surface roughness field (adaptive algorithm)"
+    type: output
+    created: "If adaptive roughness option enabled"
+    format: "ESRI ASCII raster"
+    contains: "Surface roughness length (m) on GRAL flow field grid"
+    why_created: "Shows spatially varying roughness from adaptive algorithm"
+    reference: "[attached_file:3] Chapter 17.2.2.14"
+
+  PrognosticSubDomainAreas.txt:
+    description: "Map showing prognostic vs. diagnostic calculation regions"
+    type: output
+    created: "If prognostic calculation used"
+    format: "ESRI ASCII raster"
+    contains: "1 = prognostic region (around buildings/terrain), 0 = diagnostic"
+    why_created: "Shows where full CFD vs. diagnostic interpolation is applied"
+    usage: "Diagnostic to verify prognostic sub-domain extent"
+    reference: "[attached_file:3] Chapter 17.2.2.15"
+
+  LogfileGRALCore.txt:
+    description: "GRAL computation log with model status, warnings, and errors"
+    type: output
+    created: always
+    format: "ASCII text"
+    contains: "Number of sources/groups, computation progress, error messages, hash code"
+    why_created: "Primary log file for model execution and debugging"
+    reference: "[attached_file:3] Chapter 1.6"
+
+# =====================================================================
+# PRESET/CONFIGURATION FILES (GUI-Generated)
+# =====================================================================
+preset_files:
+
+  EmissionModDiurnal.txt:
+    description: "Preset diurnal (hourly) emission modulation factors"
+    type: preset
+    location: "GUI application folder"
+    format: "ASCII text, tab/comma separated"
+    usage: "User-editable presets for hourly emission patterns (24 values)"
+    effect: "Applied to source groups if not overridden by Emissionstimeseries.txt"
+    reference: "[attached_file:4] Chapter 13.1.1"
+
+  EmissionModSeasonal.txt:
+    description: "Preset seasonal (monthly) emission modulation factors"
+    type: preset
+    location: "GUI application folder"
+    format: "ASCII text, tab/comma separated"
+    usage: "User-editable presets for monthly emission patterns (12 values)"
+    effect: "Applied to source groups if not overridden by Emissionstimeseries.txt"
+    reference: "[attached_file:4] Chapter 13.1.1"
+
+  DepositionSettings.txt:
+    description: "Preset deposition parameters for common pollutants"
+    type: preset
+    location: "GUI application folder"
+    format: "ASCII text, tab-separated"
+    usage: "Provides default deposition velocities and particle properties"
+    reference: "[attached_file:4] Chapter 11.11.5"
+
+# =====================================================================
+# IMPORTANT NOTES
+# =====================================================================
+notes:
+  version_compatibility:
+    - "GRAL-ST-ROG is based on GRAL 20.01 branch, NOT GRAL 22.09"
+    - "Some features in GRAL 22.09 may not be available in GRAL-ST-ROG"
+    - "File formats are largely compatible but physics implementations differ"
+  
+  file_naming:
+    - "Weather situations: 5-digit format (00001, 00002, etc.)"
+    - "Source groups: 2-digit format (01-99 in older versions, 01-999 in ST-ROG)"
+    - "Slices: 1-digit format (1-9)"
+  
+  absolute_vs_relative_heights:
+    - "Positive heights = relative to ground level"
+    - "Negative heights = absolute heights above sea level"
+    - "Absolute heights require topography; error without terrain file"
+  
+  transient_vs_steady_state:
+    steady_state: "Multiple classified situations; uses meteopgt.all"
+    transient: "Continuous time series; uses mettimeseries.dat"
+  
+  compression:
+    - ".grz format: zipped container for .con, .odr, .dep files"
+    - "Saves disk space; enabled in in.dat line 15"
+  
+  decimal_separators:
+    - "Use dot (.) as decimal separator for best compatibility"
+    - "GUI handles local culture but models expect invariant format"
+
+# =====================================================================
+# REFERENCE CITATIONS
+# =====================================================================
+references:
+  - "[attached_file:1] GRAMM V22.09 Documentation"
+  - "[attached_file:3] GRAL-ST-ROG Documentation (October 2023)"
+  - "[attached_file:4] GRAL-ST-ROG User Manual V23.09"

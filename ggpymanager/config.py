@@ -13,34 +13,42 @@ STD_OUT_STRING_FOR_COMPLETED_SIMULATION = {
 }
 """Standard output string indicating a completed simulation for GRAMM and GRAL."""
 INPUT_FILES = {
-    "gramm": [
-        "meteopgt.all",
-        "GRAMM.geb",
-        "landuse.asc",
-        "ggeom.asc",
-        "DispNrGramm.txt",
-        "GRAMMin.dat",
-        "PercentGramm.txt",
-        "IIN.dat",
-        "Max_Proc.txt",
-        "RoughnessUsed.txt",
-    ],
-    "gral": [
-        "meteopgt.all",
-        "GRAMM.geb",
-        "landuse.asc",
-        "ggeom.asc",
-        "GRAL.geb",
-        "buildings.dat",
-        "in.dat",
-        "micro_vert_layers.txt",
-        "GRAL_FlowFields.txt",
-        "Integrationtime.txt",
-        "cadastre.dat",
-        "point.dat",
-        "GRAL_topofile.txt",
-        "Max_Proc.txt",
-    ],
+    "gramm": {
+        "required": [
+            "meteopgt.all",
+            "GRAMM.geb",
+            "GRAMMin.dat",
+            "IIN.dat",
+            "Max_Proc.txt",
+        ],
+        "optional": [
+            "ggeom.asc",
+            "landuse.asc",
+        ],
+    },
+    "gral": {
+        "required": [
+            "meteopgt.all",
+            "GRAL.geb",
+            "in.dat",
+            "Max_Proc.txt",
+        ],
+        "optional": [
+            # GRAMM files
+            "GRAMM.geb",
+            "landuse.asc",
+            "ggeom.asc",
+            # GRAL files
+            "GRAL_FlowFields.txt",
+            "Integrationtime.txt",
+            "buildings.dat",
+            "micro_vert_layers.txt",
+            "cadastre.dat",
+            "line.dat",
+            "point.dat",
+            "GRAL_topofile.txt",
+        ],
+    },
 }
 
 # GGPyManager configuration constants

@@ -11,6 +11,8 @@ from ggpymanager.processing.wind import (
     wind_speed_from_vector,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @check_docstring_dims
 def rmse_loss(u, v, u_model, v_model):
@@ -185,7 +187,7 @@ def compute_matching_loss(
     # Import here to avoid circular dependency
     from ggpymanager.analysis.stability import get_allowed_stability_class
 
-    logging.info(f"Computing matching with {matching}...")
+    logger.info(f"Computing matching with {matching}...")
     loss_funcs = {
         "rmse": rmse_loss,
         "regularized": regularized_loss,
@@ -199,7 +201,7 @@ def compute_matching_loss(
             global_radiation, synoptic_wind_speed, stab_class_catalog
         )
         matching_loss = matching_loss.where(stab_mask)
-        logging.info(
+        logger.info(
             "Filtered {:.1f} % of the results.".format(stab_mask.mean().values * 100)
         )
     elif (
@@ -207,7 +209,7 @@ def compute_matching_loss(
         or (global_radiation is not None)
         or (stab_class_catalog is not None)
     ):
-        logging.warning(
+        logger.warning(
             "Filtering parameters were provided but 'filter' is set to False. No "
             "filtering applied."
         )

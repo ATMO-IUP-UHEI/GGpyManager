@@ -6,39 +6,39 @@ from numpy.typing import ArrayLike
 
 
 def ugm3_to_ppm(
-    ugm3: float | ArrayLike | xr.DataArray,
+    ugm3: ArrayLike | xr.DataArray,
     gas: str,
-    P_local: float | ArrayLike | xr.DataArray | None = None,
-    T_local: float | ArrayLike | xr.DataArray | None = None,
-    P0: float | ArrayLike | xr.DataArray | None = None,
-    T0: float | ArrayLike | xr.DataArray | None = None,
-    h: float | ArrayLike | xr.DataArray | None = None,
-) -> float | np.ndarray | xr.DataArray:
+    P_local: ArrayLike | xr.DataArray | None = None,
+    T_local: ArrayLike | xr.DataArray | None = None,
+    P0: ArrayLike | xr.DataArray | None = None,
+    T0: ArrayLike | xr.DataArray | None = None,
+    h: ArrayLike | xr.DataArray | None = None,
+) -> np.ndarray | xr.DataArray:
     """Convert concentration from µg/m³ to ppm for CH4 or CO2.
 
     Parameters
     ----------
-    ugm3 : float | ArrayLike | xr.DataArray
+    ugm3 : ArrayLike | xr.DataArray
         Concentration in µg/m³. Can be a scalar, numpy array, or xarray DataArray.
     gas : str
         Gas species, either 'CO2' or 'CH4' (case-insensitive).
-    P_local : float | ArrayLike | xr.DataArray, optional
+    P_local : ArrayLike | xr.DataArray, optional
         Local pressure in Pa. Can be a scalar, numpy array, or xarray DataArray.
-    T_local : float | ArrayLike | xr.DataArray, optional
+    T_local : ArrayLike | xr.DataArray, optional
         Local temperature in K. Can be a scalar, numpy array, or xarray DataArray.
-    P0 : float | ArrayLike | xr.DataArray, optional
+    P0 : ArrayLike | xr.DataArray, optional
         Ground-level pressure in Pa. Can be a scalar, numpy array, or
         xarray DataArray.
-    T0 : float | ArrayLike | xr.DataArray, optional
+    T0 : ArrayLike | xr.DataArray, optional
         Ground-level temperature in K. Can be a scalar, numpy array, or
         xarray DataArray.
-    h : float | ArrayLike | xr.DataArray, optional
+    h : ArrayLike | xr.DataArray, optional
         Height above ground in m. Can be a scalar, numpy array, or
         xarray DataArray.
 
     Returns
     -------
-    ppm : float | np.ndarray | xr.DataArray
+    ppm : np.ndarray | xr.DataArray
         Concentration in ppm (volume/volume). Returns the same type as input ugm3.
 
     Raises

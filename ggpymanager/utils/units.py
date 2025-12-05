@@ -1,40 +1,45 @@
 """Unit conversion utilities."""
 
 import numpy as np
+import xarray as xr
+from numpy.typing import ArrayLike
 
 
 def ugm3_to_ppm(
-    ugm3: float,
+    ugm3: float | ArrayLike | xr.DataArray,
     gas: str,
-    P_local: float | None = None,
-    T_local: float | None = None,
-    P0: float | None = None,
-    T0: float | None = None,
-    h: float | None = None,
-) -> float:
+    P_local: float | ArrayLike | xr.DataArray | None = None,
+    T_local: float | ArrayLike | xr.DataArray | None = None,
+    P0: float | ArrayLike | xr.DataArray | None = None,
+    T0: float | ArrayLike | xr.DataArray | None = None,
+    h: float | ArrayLike | xr.DataArray | None = None,
+) -> float | np.ndarray | xr.DataArray:
     """Convert concentration from µg/m³ to ppm for CH4 or CO2.
 
     Parameters
     ----------
-    ugm3 : float
-        Concentration in µg/m³.
+    ugm3 : float | ArrayLike | xr.DataArray
+        Concentration in µg/m³. Can be a scalar, numpy array, or xarray DataArray.
     gas : str
         Gas species, either 'CO2' or 'CH4' (case-insensitive).
-    P_local : float, optional
-        Local pressure in Pa.
-    T_local : float, optional
-        Local temperature in K.
-    P0 : float, optional
-        Ground-level pressure in Pa.
-    T0 : float, optional
-        Ground-level temperature in K.
-    h : float, optional
-        Height above ground in m.
+    P_local : float | ArrayLike | xr.DataArray, optional
+        Local pressure in Pa. Can be a scalar, numpy array, or xarray DataArray.
+    T_local : float | ArrayLike | xr.DataArray, optional
+        Local temperature in K. Can be a scalar, numpy array, or xarray DataArray.
+    P0 : float | ArrayLike | xr.DataArray, optional
+        Ground-level pressure in Pa. Can be a scalar, numpy array, or
+        xarray DataArray.
+    T0 : float | ArrayLike | xr.DataArray, optional
+        Ground-level temperature in K. Can be a scalar, numpy array, or
+        xarray DataArray.
+    h : float | ArrayLike | xr.DataArray, optional
+        Height above ground in m. Can be a scalar, numpy array, or
+        xarray DataArray.
 
     Returns
     -------
-    ppm : float
-        Concentration in ppm (volume/volume).
+    ppm : float | np.ndarray | xr.DataArray
+        Concentration in ppm (volume/volume). Returns the same type as input ugm3.
 
     Raises
     ------
@@ -85,4 +90,6 @@ def ugm3_to_ppm(
     # Convert µg/m³ to ppm using ideal gas law
     ppm = ugm3 * R * T / (M * P) * 1e-3
 
+    if isinstance(ppm, xr.DataArray):
+        ppm.attrs["units"] = "ppm"
     return ppm

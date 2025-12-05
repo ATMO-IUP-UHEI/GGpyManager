@@ -524,3 +524,120 @@ class TestUgm3ToPpmWithArrays:
         assert result.shape == ugm3_array.shape
         assert np.all(result >= 0)
         assert np.all(np.isfinite(result))
+
+    def test_ugm3_to_ppm_timeseries_with_varying_conditions(self):
+        """Test conversion with time series of varying T, P, and ugm3."""
+        # Create time series data
+        time_coords = np.arange(0, 24, 1)  # 24 hours
+        
+        # Varying concentration over time (diurnal cycle)
+        ugm3_data = 1000 + 500 * np.sin(2 * np.pi * time_coords / 24)
+        ugm3_da = xr.DataArray(
+            ugm3_data,
+            dims=["time"],
+            coords={"time": time_coords},
+            attrs={"units": "µg/m³", "description": "CO2 concentration"}
+        )
+        
+        # Varying temperature (diurnal cycle, cooler at night)
+        T_data = 288.15 + 10 * np.sin(2 * np.pi * (time_coords - 6) / 24)
+        T_da = xr.DataArray(
+            T_data,
+            dims=["time"],
+            coords={"time": time_coords},
+            attrs={"units": "K", "description": "Temperature"}
+        )
+        
+        # Varying pressure (slight daily variation)
+        P_data = 101325 + 200 * np.sin(2 * np.pi * time_coords / 24)
+        P_da = xr.DataArray(
+            P_data,
+            dims=["time"],
+            coords={"time": time_coords},
+            attrs={"units": "Pa", "description": "Pressure"}
+        )
+        
+        # Perform conversion with time-varying conditions
+        result = ugm3_to_ppm(
+            ugm3=ugm3_da,
+            gas="CO2",
+            P_local=P_da,
+            T_local=T_da
+        )
+        
+        # Check result is xarray DataArray
+        assert isinstance(result, xr.DataArray)
+        assert result.dims == ("time",)
+        assert len(result) == 24
+        assert "time" in result.coords
+        
+        # Check that conversion accounts for varying conditions
+        # Higher temperature and lower pressure should give higher ppm
+        # Manually verify a few points
+        for i in range(len(time_coords)):
+            expected = (
+                ugm3_data[i] * 8.314462618 * T_data[i] / (44.01e-3 * P_data[i]) * 1e-3
+            )
+            assert np.isclose(result.values[i], expected, rtol=1e-10)
+        
+        # Verify results are reasonable
+        assert np.all(result.values > 0)
+        assert np.all(result.values < 5.0)  # Reasonable range for CO2
+
+    def test_ugm3_to_ppm_spatiotemporal_dataarray(self):
+        """Test conversion with spatial and temporal dimensions."""
+        # Create spatiotemporal data (time, lat, lon)
+        time_coords = np.arange(0, 12, 1)
+        lat_coords = np.arange(-2, 3, 1)  # 5 latitude points
+        lon_coords = np.arange(-2, 3, 1)  # 5 longitude points
+        
+        # Create 3D concentration field
+        ugm3_data = np.random.uniform(500, 1500, size=(12, 5, 5))
+        ugm3_da = xr.DataArray(
+            ugm3_data,
+            dims=["time", "lat", "lon"],
+            coords={
+                "time": time_coords,
+                "lat": lat_coords,
+                "lon": lon_coords
+            },
+            attrs={"units": "µg/m³"}
+        )
+        
+        # Varying temperature over time (same for all locations)
+        T_data = 288.15 + 5 * np.sin(2 * np.pi * time_coords / 12)
+        T_da = xr.DataArray(
+            T_data,
+            dims=["time"],
+            coords={"time": time_coords}
+        )
+        
+        # Varying pressure over time
+        P_data = 101325 + 100 * np.sin(2 * np.pi * time_coords / 12)
+        P_da = xr.DataArray(
+            P_data,
+            dims=["time"],
+            coords={"time": time_coords}
+        )
+        
+        # Perform conversion - broadcasting should work
+        result = ugm3_to_ppm(
+            ugm3=ugm3_da,
+            gas="CH4",
+            P_local=P_da,
+            T_local=T_da
+        )
+        
+        # Check result structure
+        assert isinstance(result, xr.DataArray)
+        assert result.dims == ("time", "lat", "lon")
+        assert result.shape == (12, 5, 5)
+        
+        # Verify coordinates are preserved
+        assert "time" in result.coords
+        assert "lat" in result.coords
+        assert "lon" in result.coords
+        
+        # Verify results are reasonable
+        assert np.all(result.values > 0)
+        assert np.all(np.isfinite(result.values))

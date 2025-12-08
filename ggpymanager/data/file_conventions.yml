@@ -1,0 +1,119 @@
+file_names:
+  # Model input
+  - terrain_gramm.nc:
+    description: Terrain for GRAMM.
+    data_vars:
+      - elevation:
+          dims: (y, x)
+          dtype: float32
+          grid: gramm
+
+  - terrain_gral.nc:
+    description: Terrain for GRAL.
+    data_vars:
+      - elevation:
+          dims: (y, x)
+          dtype: float32
+          grid: gral
+
+  - buildings.nc:
+    description: Building data for GRAL
+    data_vars:
+      - height:
+          dims: (y, x)
+          dtype: float32
+          grid: gral
+
+  # - ggeom.nc:
+  #   description: Data for the terrain-following grid.
+  # Measurements
+  - meteo.nc:
+    description: Data from meteo measurements.
+    coords:
+      - in_gramm_domain:
+        dims: (station,)
+        dtype: bool
+      - in_gral_domain:
+        dims: (station,)
+        dtype: bool
+    data_vars:
+      - wind_speed:
+        dims: (time, station)
+        dtype: float32
+      - wind_direction:
+        dims: (time, station)
+        dtype: float32
+      - wind_u:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_v:
+        dims: (simulation, station)
+        dtype: float32
+
+  - tracer_measurements.nc:
+    description: Data from tracer measurements.
+    coords:
+      - in_gral_domain:
+        dims: (station,)
+        dtype: bool
+    data_vars:
+      - co2:
+        dims: (time, station)
+        dtype: float32
+        optional: true
+      - co:
+        dims: (time, station)
+        dtype: float32
+        optional: true
+      - ch4:
+        dims: (time, station)
+        dtype: float32
+        optional: true
+
+  # Model output
+  - meteo_gramm.nc:
+    description: Data from GRAMM at meteo measurements.
+    data_vars:
+      - synoptic_wind_speed:
+        dims: (simulation,)
+        dtype: float32
+      - synoptic_wind_direction:
+        dims: (simulation,)
+        dtype: float32
+      - synoptic_stability:
+        dims: (simulation,)
+      - wind_speed:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_direction:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_u:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_v:
+        dims: (simulation, station)
+        dtype: float32
+
+  - meteo_gral.nc:
+    description: Data from GRAMM at meteo measurements.
+    data_vars:
+      - wind_speed:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_direction:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_u:
+        dims: (simulation, station)
+        dtype: float32
+      - wind_v:
+        dims: (simulation, station)
+        dtype: float32
+
+scripts:
+  - read_concentrations:
+      - input:
+          - tracer_measurements.nc
+      - output:
+          - tracer_at_measurement_catalog.nc

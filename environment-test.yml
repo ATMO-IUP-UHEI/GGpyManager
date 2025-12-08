@@ -28,6 +28,7 @@ dependencies:
   # Utility
   - tqdm
   - click
+  - pyyaml
   
   # Development
   - pip

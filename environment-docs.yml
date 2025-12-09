@@ -1,0 +1,33 @@
+name: ggpymanager-docs
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  # Python version
+  - python>=3.10
+  
+  # Documentation
+  - sphinx>=7.4
+  - nbsphinx
+  - graphviz
+  - jupyter
+  
+  # Scientific stack (needed for docs and package imports)
+  - numpy
+  - xarray
+  - pandas
+  - matplotlib
+  - scipy
+  - rasterio
+  - rioxarray
+  - geopandas
+  - tqdm
+  - click
+  - pyyaml
+  
+  # Development
+  - pip
+  
+  # Install local package in dev mode via pip
+  - pip:
+      - -e .

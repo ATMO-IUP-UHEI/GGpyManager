@@ -1,27 +1,64 @@
 API
 ===========
 
-Catalog
+Models
 --------------------------
 
-.. automodule:: ggpymanager.catalog
+Catalog
+^^^^^^^
+
+.. automodule:: ggpymanager.models.catalog
    :members:
    :undoc-members:
    :show-inheritance:
-   :noindex:
 
-Reader
+Dataclasses
+^^^^^^^^^^^
+
+.. automodule:: ggpymanager.models.dataclasses
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+I/O
 -------------------------
 
-.. automodule:: ggpymanager.reader
+Readers
+^^^^^^^
+
+.. automodule:: ggpymanager.io.readers
    :members:
    :undoc-members:
    :show-inheritance:
 
-Simulation
------------------------------
+Writers
+^^^^^^^
 
-.. automodule:: ggpymanager.simulation
+.. automodule:: ggpymanager.io.writers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Parsers
+^^^^^^^
+
+.. automodule:: ggpymanager.io.parsers
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Processing
+--------------------------
+
+.. automodule:: ggpymanager.processing
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Analysis
+--------------------------
+
+.. automodule:: ggpymanager.analysis
    :members:
    :undoc-members:
    :show-inheritance:

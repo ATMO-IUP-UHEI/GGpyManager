@@ -61,9 +61,17 @@ def match(config_filename):
         f"Match GRAMM/GRAL wind fields to observations using file paths from "
         f"{config_filename}."
     )
-    click.echo("Loading meteorological measurements and model data...")
+
     logging.info(f"Loading configuration from {config_filename}")
     config = ggp.io.read_project_yaml_file(config_filename)
+    matching_path = Path(config["output_path"]) / "matching_loss.nc"
+    if matching_path.exists():
+        click.echo(
+            f"Matching loss file already exists at {matching_path}, not overwriting."
+        )
+        return
+
+    click.echo("Loading meteorological measurements and model data...")
     fp = config["gramm_meteo_path"] + "/meteo.nc"
     logging.info(f"Loading GRAMM meteo from {fp}")
     gramm_meteo = xr.open_dataset(fp)
@@ -80,19 +88,19 @@ def match(config_filename):
         "gramm": gramm_meteo,
         "gral": gral_meteo,
     }
-    print(gramm_meteo.station)
     model_meteo = xr.concat(
         [
             model_selection[m].sel(station=s)
             for s, m in config["matching"]["stations"].items()
         ],
         dim="station",
+        coords="minimal",
+        compat="override",
     )
     meteo_measurements = meteo.sel(
         station=model_meteo["station"],
         time=slice(config["matching"]["time_start"], config["matching"]["time_end"]),
     )
-
     click.echo("Computing matching loss...")
     losses = []
     for filter in [False, True]:
@@ -100,23 +108,25 @@ def match(config_filename):
             loss = ggp.analysis.compute_matching_loss(
                 meteo_measurements["u_wind"],
                 meteo_measurements["v_wind"],
-                model_meteo["u"],
-                model_meteo["v"],
+                model_meteo["u"].T,
+                model_meteo["v"].T,
                 matching=loss_type,
                 filter=filter,
-                synoptic_wind_speed=model_meteo["speed"] if filter else None,
+                synoptic_wind_speed=gral_meteo["speed"] if filter else None,
                 global_radiation=(
                     meteo_measurements["global_radiation"].mean("station")
                     if filter
                     else None
                 ),
-                stab_class_catalog=model_meteo["stab_class"] if filter else None,
+                stab_class_catalog=gral_meteo["stab_class"] if filter else None,
             )
             loss = loss.expand_dims("loss")
             loss["loss"] = [f"{loss_type} - filter: {filter}"]
             losses.append(loss)
     matching_loss = xr.concat(losses, dim="loss")
-    print(matching_loss)
+    matching_path.parent.mkdir(parents=True, exist_ok=True)
+    click.echo(f"Saving matching loss to {matching_path}")
+    matching_loss.to_netcdf(matching_path)
 
 
 if __name__ == "__main__":

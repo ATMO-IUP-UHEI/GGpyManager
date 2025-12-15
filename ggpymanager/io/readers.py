@@ -151,9 +151,9 @@ def read_gramm_windfield(
     info = np.frombuffer(data[: nheader - 4], dtype=np.int32)
     datarr = np.frombuffer(data[nheader:], dtype=dt)
     datarr = np.reshape(datarr, [nx, ny, nz, 3])
-    wind_u = datarr[:, :, :, 0] * 100
-    wind_v = datarr[:, :, :, 1] * 100
-    wind_w = datarr[:, :, :, 2] * 100
+    wind_u = datarr[:, :, :, 0] / 100
+    wind_v = datarr[:, :, :, 1] / 100
+    wind_w = datarr[:, :, :, 2] / 100
 
     return info, wind_u, wind_v, wind_w
 

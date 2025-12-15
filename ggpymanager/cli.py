@@ -50,12 +50,16 @@ def status(directory, model, flag2):
 
 
 @main.command()
-@click.argument("filename")
-@click.option("--output", "-o", help="Output file")
-def process2(filename, output):
-    """Second processing command"""
-    logger.info("Processing %s with process2", filename)
-    # Your logic here
+@click.argument("config_filename", type=click.Path(exists=True))
+def match(config_filename):
+    """
+    Match GRAMM/GRAL wind fields to observations using file paths from CONFIG_FILENAME.
+    """
+    click.echo(
+        f"Match GRAMM/GRAL wind fields to observations using file paths from "
+        f"{config_filename}."
+    )
+    raise NotImplementedError("Functionality not yet implemented.")
 
 
 if __name__ == "__main__":

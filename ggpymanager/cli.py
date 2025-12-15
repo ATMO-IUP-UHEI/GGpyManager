@@ -1,10 +1,12 @@
-# src/my_package/cli.py
 from pathlib import Path
 
 import click
+import logging
 
 from ggpymanager import Catalog
 from ggpymanager.utils.logging import set_logger
+
+logger = logging.getLogger(__name__)
 
 
 @click.group()
@@ -29,7 +31,8 @@ def main(ctx, log_level):
 @click.option("--flag2", is_flag=True, help="Boolean flag")
 def status(directory, model, flag2):
     """Get the status of the directory"""
-    click.echo(f"Processing {directory} with status")
+    # click.echo(f"Processing {directory} with status")
+    logger.info("Processing %s with status", directory)
     # Your logic here
     if directory == ".":
         directory = Path.cwd()
@@ -51,7 +54,7 @@ def status(directory, model, flag2):
 @click.option("--output", "-o", help="Output file")
 def process2(filename, output):
     """Second processing command"""
-    click.echo(f"Processing {filename} with process2")
+    logger.info("Processing %s with process2", filename)
     # Your logic here
 
 

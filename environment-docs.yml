@@ -1,4 +1,4 @@
-name: ggpymanager-test
+name: ggpymanager-docs
 channels:
   - conda-forge
   - defaults
@@ -6,26 +6,21 @@ dependencies:
   # Python version
   - python>=3.10
   
-  # Core testing
-  - pytest>=8.0.0
-  - pytest-cov>=4.1.0
-  - pytest-xdist>=3.5.0
-  - pytest-mock>=3.12.0
+  # Documentation
+  - sphinx>=7.4
+  - nbsphinx
+  - graphviz
+  - jupyter
   
-  # Coverage
-  - coverage>=7.4.0
-  
-  # Scientific stack (if needed for your package)
+  # Scientific stack (needed for docs and package imports)
   - numpy
   - xarray
   - pandas
+  - matplotlib
   - scipy
   - rasterio
   - rioxarray
   - geopandas
-  - matplotlib
-  
-  # Utility
   - tqdm
   - click
   - pyyaml

@@ -1,8 +1,10 @@
+import logging
 from pathlib import Path
 
 import click
-import logging
+import xarray as xr
 
+import ggpymanager as ggp
 from ggpymanager import Catalog
 from ggpymanager.utils.logging import set_logger
 
@@ -59,7 +61,62 @@ def match(config_filename):
         f"Match GRAMM/GRAL wind fields to observations using file paths from "
         f"{config_filename}."
     )
-    raise NotImplementedError("Functionality not yet implemented.")
+    click.echo("Loading meteorological measurements and model data...")
+    logging.info(f"Loading configuration from {config_filename}")
+    config = ggp.io.read_project_yaml_file(config_filename)
+    fp = config["gramm_meteo_path"] + "/meteo.nc"
+    logging.info(f"Loading GRAMM meteo from {fp}")
+    gramm_meteo = xr.open_dataset(fp)
+    fp = config["gral_meteo_path"] + "/meteo.nc"
+    logging.info(f"Loading GRAL meteo from {fp}")
+    gral_meteo = xr.open_dataset(fp)
+    # Fix wrong variable names in GRAL meteo file
+    if "ux" in gral_meteo.variables and "vy" in gral_meteo.variables:
+        gral_meteo = gral_meteo.rename({"ux": "u", "vy": "v"})
+    meteo = xr.open_dataset(config["meteo_path"] + "/meteo.nc")
+
+    click.echo("Constructing meteorological measurement mask...")
+    model_selection = {
+        "gramm": gramm_meteo,
+        "gral": gral_meteo,
+    }
+    print(gramm_meteo.station)
+    model_meteo = xr.concat(
+        [
+            model_selection[m].sel(station=s)
+            for s, m in config["matching"]["stations"].items()
+        ],
+        dim="station",
+    )
+    meteo_measurements = meteo.sel(
+        station=model_meteo["station"],
+        time=slice(config["matching"]["time_start"], config["matching"]["time_end"]),
+    )
+
+    click.echo("Computing matching loss...")
+    losses = []
+    for filter in [False, True]:
+        for loss_type in ["rmse", "regularized", "compound"]:
+            loss = ggp.analysis.compute_matching_loss(
+                meteo_measurements["u_wind"],
+                meteo_measurements["v_wind"],
+                model_meteo["u"],
+                model_meteo["v"],
+                matching=loss_type,
+                filter=filter,
+                synoptic_wind_speed=model_meteo["speed"] if filter else None,
+                global_radiation=(
+                    meteo_measurements["global_radiation"].mean("station")
+                    if filter
+                    else None
+                ),
+                stab_class_catalog=model_meteo["stab_class"] if filter else None,
+            )
+            loss = loss.expand_dims("loss")
+            loss["loss"] = [f"{loss_type} - filter: {filter}"]
+            losses.append(loss)
+    matching_loss = xr.concat(losses, dim="loss")
+    print(matching_loss)
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from .readers import (
     read_gral_concentration,
     read_esri_ascii,
     read_ggeom_file,
+    read_project_yaml_file,
 )
 from .writers import (
     write_landuse,
@@ -46,6 +47,7 @@ __all__ = [
     "read_gral_concentration",
     "read_esri_ascii",
     "read_ggeom_file",
+    "read_project_yaml_file",
     # Writers
     "write_landuse",
     "write_buildings_file",

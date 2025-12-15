@@ -9,6 +9,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import xarray as xr
+import yaml
 from scipy import sparse
 
 # Constants
@@ -596,3 +597,21 @@ def read_ggeom_file(file_path: str | Path) -> xr.Dataset:
         ds[var].attrs["units"] = units
 
     return ds
+
+
+def read_project_yaml_file(path: str | Path) -> dict:
+    """Read project YAML file.
+
+    Parameters
+    ----------
+    path : str | Path
+        Path to the project YAML file.
+
+    Returns
+    -------
+    dict
+        Dictionary containing project configuration.
+    """
+    with open(path, "r") as f:
+        config = yaml.safe_load(f)
+    return config

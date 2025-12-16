@@ -120,10 +120,11 @@ def match(config_filename):
                 ),
                 stab_class_catalog=gral_meteo["stab_class"] if filter else None,
             )
-            loss = loss.expand_dims("loss")
-            loss["loss"] = [f"{loss_type} - filter: {filter}"]
+            loss = loss.expand_dims("loss_type")
+            loss.name = "matching_loss"
+            loss["loss_type"] = [f"{loss_type} - filter: {filter}"]
             losses.append(loss)
-    matching_loss = xr.concat(losses, dim="loss")
+    matching_loss = xr.concat(losses, dim="loss_type")
     matching_path.parent.mkdir(parents=True, exist_ok=True)
     click.echo(f"Saving matching loss to {matching_path}")
     matching_loss.to_netcdf(matching_path)

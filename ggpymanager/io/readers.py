@@ -600,7 +600,7 @@ def read_ggeom_file(file_path: str | Path) -> xr.Dataset:
 
 
 def read_project_yaml_file(path: str | Path) -> dict:
-    """Read project YAML file.
+    """Read project YAML file and replace relative paths with absolute paths.
 
     Parameters
     ----------
@@ -614,4 +614,13 @@ def read_project_yaml_file(path: str | Path) -> dict:
     """
     with open(path, "r") as f:
         config = yaml.safe_load(f)
+    main_path = config["main_path"]
+    for key, value in config.items():
+        if not key.endswith("_path"):
+            continue
+        if not isinstance(value, str):
+            continue
+        if value.startswith("/"):
+            continue
+        config[key] = str(Path(main_path) / value)
     return config

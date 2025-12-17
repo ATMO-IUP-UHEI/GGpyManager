@@ -34,29 +34,26 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
         at each time step.
     """
     radiation_index = xr.zeros_like(radiation, dtype=int)
+
     wind_speed_index = xr.zeros_like(wind_speed, dtype=int)
+
     catalog_filter = load_catalog_filter()
-    min_rads = catalog_filter.columns.get_level_values(1).astype(float)[::-1]
+    min_rads = catalog_filter.columns.get_level_values(1).astype(float)
 
-    # Select bin for radiation for each time step
-    for i, min_rad in enumerate(min_rads):
-        above_rad_threshold = radiation >= min_rad
-        radiation_index[above_rad_threshold] = i
-        logger.info(
-            "Radiation larger {:>5} W/m²: {:>4} entries".format(
-                min_rad, above_rad_threshold.sum().values
-            )
-        )
+    radiation_index.data = np.digitize(
+        radiation,
+        bins=min_rads.values,
+    )
+    logger.info(radiation_index.to_pandas().value_counts().sort_index())
 
-    # Select bin for wind speed for each time step
-    for i, min_wind_speed in enumerate(catalog_filter.index):
-        above_wind_threshold = wind_speed >= float(min_wind_speed)
-        wind_speed_index[above_wind_threshold] = i
-        logger.info(
-            "Wind speed larger {} m/s: {:>4} entries".format(
-                min_wind_speed, above_wind_threshold.sum().values
-            )
+    wind_speed_index.data = (
+        np.digitize(
+            wind_speed,
+            bins=catalog_filter.index.values.astype(float),
         )
+        - 1
+    )  # Adjust for zero-based indexing
+    logger.info(wind_speed_index.to_pandas().value_counts().sort_index())
 
     # Get stability class(es) for each time step (dims: sim_id, time)
     allowed_stab_classes = catalog_filter.values[:, radiation_index.values][
@@ -78,6 +75,7 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
         is_index = stab_class_catalog == index
         stab_class_as_str[is_index] = stab
 
+    logger.info(stab_class_as_str.to_pandas().value_counts().sort_index())
     # Create empty mask
     stability_class_mask = xr.DataArray(
         np.zeros((len(radiation), len(wind_speed)), dtype=bool),

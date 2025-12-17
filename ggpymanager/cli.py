@@ -1,4 +1,5 @@
 import logging
+from enum import Enum
 from pathlib import Path
 
 import click
@@ -26,15 +27,23 @@ def main(ctx, log_level):
     ctx.obj["log_level"] = log_level
 
 
+class ModelType(str, Enum):
+    GRAMM = "gramm"
+    GRAL = "gral"
+    NONE = "none"
+
+
 @main.command()
 @click.argument("directory", type=click.Path(exists=True), default=".")
-@click.option("--model", "-f", help="Model, either 'gramm' or 'gral", default="none")
-@click.option("--flag2", is_flag=True, help="Boolean flag")
-def status(directory, model, flag2):
+@click.option(
+    "--model",
+    "-f",
+    type=click.Choice([m.value for m in ModelType]),
+    default=ModelType.NONE.value,
+)
+def status(directory, model):
     """Get the status of the directory"""
-    # logging.info(f"Processing {directory} with status")
-    logger.info("Processing %s with status", directory)
-    # Your logic here
+    logger.info("Processing {directory} with status")
     if directory == ".":
         directory = Path.cwd()
     if model == "none":

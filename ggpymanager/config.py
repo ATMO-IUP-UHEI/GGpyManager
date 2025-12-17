@@ -53,3 +53,7 @@ INPUT_FILES = {
 
 # GGPyManager configuration constants
 STATUS_LOG_FILE_NAME = "catalog_status.nc"
+MATCHING_LOSS_FILE_NAME = "matching_loss.nc"
+CONCENTRATION_TIMESERIES_FILE_NAME = "concentration_timeseries.nc"
+GRAMM_METEO_TIMESERIES_FILE_NAME = "gramm_meteo_timeseries.nc"
+GRAL_METEO_TIMESERIES_FILE_NAME = "gral_meteo_timeseries.nc"

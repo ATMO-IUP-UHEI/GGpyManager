@@ -74,5 +74,17 @@ def match(config_filename):
     return ggp.cli_functions.generate_matching_loss_file(config)
 
 
+@main.command()
+@click.argument("config_filename", type=click.Path(exists=True))
+def timeseries(config_filename):
+    """
+    Generate time series data using file paths from CONFIG_FILENAME.
+    """
+    logging.info(f"Generate time series plots using file paths from {config_filename}.")
+    logging.info(f"Loading configuration from {config_filename}")
+    config = ggp.io.read_project_yaml_file(config_filename)
+    return ggp.cli_functions.generate_timeseries(config)
+
+
 if __name__ == "__main__":
     main()

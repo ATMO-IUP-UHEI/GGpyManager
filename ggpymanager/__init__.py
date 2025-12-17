@@ -1,11 +1,5 @@
+from ggpymanager import analysis, cli_functions, config, io, models, processing, utils
 from ggpymanager.models.catalog import Catalog
-from ggpymanager import utils
-from ggpymanager import config
-
-from ggpymanager import io
-from ggpymanager import models
-from ggpymanager import processing
-from ggpymanager import analysis
 
 __all__ = [
     "Catalog",
@@ -15,4 +9,5 @@ __all__ = [
     "models",
     "processing",
     "analysis",
+    "cli_functions",
 ]

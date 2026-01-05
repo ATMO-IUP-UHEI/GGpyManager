@@ -599,6 +599,35 @@ def read_ggeom_file(file_path: str | Path) -> xr.Dataset:
     return ds
 
 
+def replace_relative_paths(main_path: str, config: dict) -> dict:
+    """Replace relative paths in config dictionary with absolute paths.
+
+    Parameters
+    ----------
+    main_path : str
+        Main path to prepend to relative paths.
+    config : dict
+        Configuration dictionary with potential relative paths.
+
+    Returns
+    -------
+    dict
+        Updated configuration dictionary with absolute paths.
+    """
+    for key, value in config.items():
+        if isinstance(value, dict):
+            config[key] = replace_relative_paths(main_path, value)
+            continue
+        if not key.endswith("_path"):
+            continue
+        if not isinstance(value, str):
+            continue
+        if value.startswith("/"):
+            continue
+        config[key] = str(Path(main_path) / value)
+    return config
+
+
 def read_project_yaml_file(path: str | Path) -> dict:
     """Read project YAML file and replace relative paths with absolute paths.
 
@@ -615,12 +644,5 @@ def read_project_yaml_file(path: str | Path) -> dict:
     with open(path, "r") as f:
         config = yaml.safe_load(f)
     main_path = config["main_path"]
-    for key, value in config.items():
-        if not key.endswith("_path"):
-            continue
-        if not isinstance(value, str):
-            continue
-        if value.startswith("/"):
-            continue
-        config[key] = str(Path(main_path) / value)
+    config = replace_relative_paths(main_path, config)
     return config

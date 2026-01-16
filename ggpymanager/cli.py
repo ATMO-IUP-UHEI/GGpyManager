@@ -43,7 +43,7 @@ class ModelType(str, Enum):
 )
 def status(directory, model):
     """Get the status of the directory"""
-    logger.info("Processing {directory} with status")
+    logger.info(f"Processing {directory} with status")
     if directory == ".":
         directory = Path.cwd()
     if model == "none":

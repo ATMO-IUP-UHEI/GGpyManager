@@ -24,6 +24,7 @@ dependencies:
   - rioxarray
   - geopandas
   - matplotlib
+  - dask
   
   # Utility
   - tqdm

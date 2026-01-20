@@ -45,8 +45,10 @@ def read_gral_config(gral_geb_path: Path, in_dat_path: Path) -> dict:
         "source_groups": [int(number) for number in lines[6].split(",")],
         "west_border": float(lines[7]),
         "east_border": float(lines[8]),
+        "xmin": float(lines[7]),
         "south_border": float(lines[9]),
         "north_border": float(lines[10]),
+        "ymin": float(lines[9]),
     }
     with in_dat_path.open("r") as f:
         lines = f.readlines()
@@ -374,14 +376,29 @@ def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
     ----------
     path : Path
         Path to the concentration file.
-    GRAL : object
-        GRAL configuration object with nx, ny, dx, dy, xmin, ymin attributes.
+    GRAL : object or dict
+        GRAL configuration object or dict with nx, ny, dx, dy, xmin, ymin.
 
     Returns
     -------
     np.ndarray | None
         2D concentration array, or None if file is too small.
     """
+    # Support both dict and object access patterns
+    get_val = GRAL.get if isinstance(GRAL, dict) else lambda k: getattr(GRAL, k)
+    nx = get_val("nx")
+    ny = get_val("ny")
+    dx = get_val("dx")
+    dy = get_val("dy")
+    xmin = get_val("xmin")
+    ymin = get_val("ymin")
+    assert isinstance(nx, int), "nx must be an integer."
+    assert isinstance(ny, int), "ny must be an integer."
+    assert isinstance(dx, float), "dx must be a float."
+    assert isinstance(dy, float), "dy must be a float."
+    assert isinstance(xmin, float), "xmin must be a float."
+    assert isinstance(ymin, float), "ymin must be a float."
+
     with path.open("rb") as f:
         data = f.read()
 
@@ -392,11 +409,11 @@ def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
     dt = np.dtype([("x", "<i4"), ("y", "<i4"), ("val", "<f4")])
     datarr = np.frombuffer(data[4:], dtype=dt)
 
-    con = np.zeros((GRAL.nx, GRAL.ny), dtype=np.float32)
+    con = np.zeros((nx, ny), dtype=np.float32)  # type: ignore
 
     # Compute indices directly
-    idx = ((datarr["x"] - GRAL.xmin) / GRAL.dx - 0.5).astype(int)
-    idy = ((datarr["y"] - GRAL.ymin) / GRAL.dy - 0.5).astype(int)
+    idx = ((datarr["x"] - xmin) / dx - 0.5).astype(int)
+    idy = ((datarr["y"] - ymin) / dy - 0.5).astype(int)
 
     con[idx, idy] = datarr["val"]
 

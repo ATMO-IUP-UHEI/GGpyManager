@@ -13,10 +13,11 @@ from typing import Literal
 
 import numpy as np
 import xarray as xr
+from joblib import Parallel, delayed
 from tqdm import tqdm
 
 import ggpymanager.config as CONFIG
-from ggpymanager import io, models
+from ggpymanager import io, models, processing
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,69 @@ def _get_dir_size(sim_dir: Path) -> int:
     except (subprocess.CalledProcessError, ValueError, IndexError) as e:
         logger.warning(f"Error calculating disk space for {sim_dir}: {e}")
         return 0
+
+
+def _process_wind_gradient(p: Path, model: str, config: dict) -> xr.DataArray:
+    """Process wind field for a single simulation.
+
+    Parameters
+    ----------
+    p : Path
+        Path to simulation directory.
+    model : str
+        Model type ("gramm" or "gral").
+    config : dict
+        GRAL configuration dictionary.
+
+    Returns
+    -------
+    xr.DataArray
+        Mean wind speed vertical profile, or NaN if wind file doesn't exist.
+    """
+    p_wind = p / CONFIG.WIND_FILE_EXTENSION[model]
+    if not p_wind.exists():
+        logging.warning(f"Wind file does not exist: {p_wind}")
+        return xr.DataArray(np.nan, dims=["sim_id"])
+
+    wind = io.read_gral_windfield(p_wind, as_xarray=True, config=config)
+    if not isinstance(wind, xr.Dataset):
+        logging.warning(f"Failed to read wind field from file: {p_wind}")
+        return xr.DataArray(np.nan, dims=["sim_id"])
+
+    wind_speed = processing.wind_speed_from_vector(wind["ux"], wind["vy"])
+    return wind_speed.mean(dim=["x", "y"])
+
+
+def _process_concentration_gradient(p: Path, config: dict) -> xr.DataArray:
+    """Process concentration fields for a single simulation.
+
+    Parameters
+    ----------
+    p : Path
+        Path to simulation directory.
+    config : dict
+        GRAL configuration dictionary.
+
+    Returns
+    -------
+    xr.DataArray
+        Concentration vertical profile.
+    """
+    nz = config["n_horizontal_slices_concentration"]
+    con = np.zeros((nz,), dtype=np.float64)
+
+    for i in range(nz):
+        path_list = list(p.glob(f"*-{i+1}*.con"))
+        for path in path_list:
+            file_content = io.read_con_file(path, GRAL=config)
+            if file_content is not None:
+                con[i] += file_content.mean()
+
+    return xr.DataArray(
+        con,
+        dims=["vertical_level"],
+        coords={"vertical_level": config["horizontal_slices_concentration"]},
+    )
 
 
 class Catalog:
@@ -311,3 +375,49 @@ class Catalog:
             "model": self.model,
         }
         return ds
+
+    def load_config_files(self) -> None:
+        if self.model == "gramm":
+            raise NotImplementedError("GRIMM config loading not implemented yet.")
+        elif self.model == "gral":
+            self.config = io.read_gral_config(
+                gral_geb_path=self.catalog_path / CONFIG.CONFIG_PATH / "GRAL.geb",
+                in_dat_path=self.catalog_path / CONFIG.CONFIG_PATH / "in.dat",
+            )
+
+    def compute_vertical_gradients(self, n_processes: int) -> xr.Dataset:
+        logging.info("Load config files")
+        self.load_config_files()
+
+        logging.info("Open catalog status log")
+        ds_status = xr.load_dataset(self.status_log_path)
+
+        if "wind_speed_vertical_gradient" in ds_status.data_vars:
+            logging.info("Vertical gradients already computed in status log.")
+        else:
+            logger.info(f"Processing wind gradients using {n_processes} processes.")
+            gradients = Parallel(n_jobs=n_processes)(
+                delayed(_process_wind_gradient)(p, self.model, self.config)
+                for p in tqdm(self.simulation_entries, desc="Wind gradients")
+            )
+            ds_status["wind_speed_vertical_gradient"] = xr.concat(
+                gradients, dim="sim_id", join="outer"  # type: ignore
+            )  # type: ignore
+
+        if "concentration_vertical_profile" in ds_status.data_vars:
+            logging.info("Concentration gradients already computed in status log.")
+        else:
+            logger.info(
+                f"Processing concentration gradients using {n_processes} processes."
+            )
+            gradients = Parallel(n_jobs=n_processes)(
+                delayed(_process_concentration_gradient)(p, self.config)
+                for p in tqdm(self.simulation_entries, desc="Concentration gradients")
+            )
+            ds_status["concentration_vertical_profile"] = xr.concat(
+                gradients, dim="sim_id", join="outer"  # type: ignore
+            )  # type: ignore
+
+        logging.info("Saving updated status log with vertical gradients.")
+        ds_status.to_netcdf(self.status_log_path)
+        return ds_status

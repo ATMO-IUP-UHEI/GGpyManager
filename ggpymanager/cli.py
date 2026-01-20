@@ -60,6 +60,40 @@ def status(directory, model):
 
 
 @main.command()
+@click.argument("directory", type=click.Path(exists=True), default=".")
+@click.option(
+    "--n-processes",
+    "-n",
+    type=int,
+    default=1,
+    show_default=True,
+    help="Number of processes to use for parallel computation.",
+)
+@click.option(
+    "--model",
+    "-f",
+    type=click.Choice([m.value for m in ModelType]),
+    default=ModelType.NONE.value,
+)
+def vertical_gradients(directory, model, n_processes):
+    """Get the status of the directory"""
+    logger.info(f"Processing {directory} with status")
+    if directory == ".":
+        directory = Path.cwd()
+    if model == "none":
+        if "gramm" in Path(directory).name:
+            model = "gramm"
+        elif "gral" in Path(directory).name:
+            model = "gral"
+        else:
+            raise ValueError(
+                "Could not determine model from directory name. "
+                "Please specify using --model option to select either 'gramm' or 'gral."
+            )
+    Catalog(directory, model=model).compute_vertical_gradients(n_processes=n_processes)
+
+
+@main.command()
 @click.argument("config_filename", type=click.Path(exists=True))
 def match(config_filename):
     """

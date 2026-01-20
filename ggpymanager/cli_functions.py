@@ -24,6 +24,9 @@ def generate_matching_loss_file(config):
     gral_meteo = xr.open_dataset(fp)
     # Fix wrong variable names in GRAL meteo file
     if "ux" in gral_meteo.variables and "vy" in gral_meteo.variables:
+        logging.warning(
+            "'ux' and 'vy' variables found in GRAL meteo data. Renaming to 'u' and 'v'."
+        )
         gral_meteo = gral_meteo.rename({"ux": "u", "vy": "v"})
     meteo = xr.open_dataset(config["meteo_path"] + "/meteo.nc")
 

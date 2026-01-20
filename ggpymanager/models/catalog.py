@@ -403,6 +403,8 @@ class Catalog:
             ds_status["wind_speed_vertical_gradient"] = xr.concat(
                 gradients, dim="sim_id", join="outer"  # type: ignore
             )  # type: ignore
+            logging.info("Saving updated status log with vertical gradients.")
+            ds_status.to_netcdf(self.status_log_path)
 
         if "concentration_vertical_profile" in ds_status.data_vars:
             logging.info("Concentration gradients already computed in status log.")
@@ -417,7 +419,7 @@ class Catalog:
             ds_status["concentration_vertical_profile"] = xr.concat(
                 gradients, dim="sim_id", join="outer"  # type: ignore
             )  # type: ignore
+            logging.info("Saving updated status log with vertical gradients.")
+            ds_status.to_netcdf(self.status_log_path)
 
-        logging.info("Saving updated status log with vertical gradients.")
-        ds_status.to_netcdf(self.status_log_path)
         return ds_status

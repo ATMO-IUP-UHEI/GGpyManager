@@ -6,14 +6,13 @@ which can be started to efficiently use the available computation power.
 
 import logging
 import subprocess
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import xarray as xr
-from joblib import Parallel, delayed
 from tqdm import tqdm
 
 import ggpymanager.config as CONFIG
@@ -68,12 +67,12 @@ def _process_wind_gradient(p: Path, model: str, config: dict) -> xr.DataArray:
     """
     p_wind = p / CONFIG.WIND_FILE_EXTENSION[model]
     if not p_wind.exists():
-        logging.warning(f"Wind file does not exist: {p_wind}")
+        logger.warning(f"Wind file does not exist: {p_wind}")
         return xr.DataArray(np.nan, dims=["sim_id"])
 
     wind = io.read_gral_windfield(p_wind, as_xarray=True, config=config)
     if not isinstance(wind, xr.Dataset):
-        logging.warning(f"Failed to read wind field from file: {p_wind}")
+        logger.warning(f"Failed to read wind field from file: {p_wind}")
         return xr.DataArray(np.nan, dims=["sim_id"])
 
     wind_speed = processing.wind_speed_from_vector(wind["ux"], wind["vy"])
@@ -101,9 +100,7 @@ def _process_concentration_gradient(p: Path, config: dict) -> xr.DataArray:
     for i in range(nz):
         path_list = list(p.glob(f"*-{i+1}*.con"))
         for path in path_list:
-            file_content = io.read_con_file(path, GRAL=config)
-            if file_content is not None:
-                con[i] += file_content.mean()
+            con[i] += io.read_con_file_mean(path, GRAL=config)
 
     return xr.DataArray(
         con,
@@ -386,40 +383,126 @@ class Catalog:
             )
 
     def compute_vertical_gradients(self, n_processes: int) -> xr.Dataset:
-        logging.info("Load config files")
+        logger.info("Load config files")
         self.load_config_files()
 
-        logging.info("Open catalog status log")
+        logger.info("Open catalog status log")
         ds_status = xr.load_dataset(self.status_log_path)
 
         if "wind_speed_vertical_gradient" in ds_status.data_vars:
-            logging.info("Vertical gradients already computed in status log.")
+            logger.info("Vertical wind speed gradients already computed in status log.")
         else:
-            logger.info(f"Processing wind gradients using {n_processes} processes.")
-            gradients = Parallel(n_jobs=n_processes)(
-                delayed(_process_wind_gradient)(p, self.model, self.config)
-                for p in tqdm(self.simulation_entries, desc="Wind gradients")
-            )
+            logger.info(f"Processing wind gradients using {n_processes} threads.")
+            with ThreadPoolExecutor(max_workers=n_processes) as executor:
+                futures = {
+                    executor.submit(
+                        _process_wind_gradient, p, self.model, self.config
+                    ): p
+                    for p in self.simulation_entries
+                }
+                gradients = [
+                    future.result()
+                    for future in tqdm(
+                        as_completed(futures),
+                        total=len(self.simulation_entries),
+                        desc="Wind gradients",
+                    )
+                ]
             ds_status["wind_speed_vertical_gradient"] = xr.concat(
                 gradients, dim="sim_id", join="outer"  # type: ignore
             )  # type: ignore
-            logging.info("Saving updated status log with vertical gradients.")
+            logger.info("Saving updated status log with vertical gradients.")
             ds_status.to_netcdf(self.status_log_path)
 
-        if "concentration_vertical_profile" in ds_status.data_vars:
-            logging.info("Concentration gradients already computed in status log.")
+        # Process concentration gradients with incremental saving
+        if "concentration_vertical_profile" not in ds_status.data_vars:
+            # Initialize the variable if it doesn't exist
+            nz = self.config["n_horizontal_slices_concentration"]
+            vertical_coords = self.config["horizontal_slices_concentration"]
+            empty_profile = xr.DataArray(
+                np.full((len(self.sim_ids), nz), np.nan, dtype=np.float32),
+                dims=["sim_id", "vertical_level"],
+                coords={
+                    "sim_id": self.sim_ids,
+                    "vertical_level": vertical_coords,
+                },
+            )
+            ds_status["concentration_vertical_profile"] = empty_profile
+            ds_status.to_netcdf(self.status_log_path)
+            logger.info("Initialized concentration_vertical_profile variable.")
+
+        # Find which simulations still need processing
+        already_computed = (
+            ~ds_status["concentration_vertical_profile"].isel(vertical_level=0).isnull()
+        )
+        sim_ids_to_process = [
+            sim_id
+            for sim_id, is_computed in zip(self.sim_ids, already_computed.values)
+            if not is_computed
+        ]
+
+        if not sim_ids_to_process:
+            logger.info("All concentration gradients already computed.")
         else:
             logger.info(
-                f"Processing concentration gradients using {n_processes} processes."
+                f"Processing {len(sim_ids_to_process)} remaining concentration gradients "
+                f"using {n_processes} processes (out of {len(self.sim_ids)} total)."
             )
-            gradients = Parallel(n_jobs=n_processes)(
-                delayed(_process_concentration_gradient)(p, self.config)
-                for p in tqdm(self.simulation_entries, desc="Concentration gradients")
-            )
-            ds_status["concentration_vertical_profile"] = xr.concat(
-                gradients, dim="sim_id", join="outer"  # type: ignore
-            )  # type: ignore
-            logging.info("Saving updated status log with vertical gradients.")
-            ds_status.to_netcdf(self.status_log_path)
+
+            # Get simulation paths for the simulations to process
+            sim_entries_to_process = [
+                self.simulation_entries[self.sim_ids.index(sim_id)]
+                for sim_id in sim_ids_to_process
+            ]
+
+            # Process in batches of 64
+            batch_size = 128
+            for batch_start in range(0, len(sim_ids_to_process), batch_size):
+                batch_end = min(batch_start + batch_size, len(sim_ids_to_process))
+                batch_sim_ids = sim_ids_to_process[batch_start:batch_end]
+                batch_sim_entries = sim_entries_to_process[batch_start:batch_end]
+
+                logger.info(
+                    f"Processing batch {batch_start // batch_size + 1} "
+                    f"({batch_start + 1}-{batch_end} of {len(sim_ids_to_process)})"
+                )
+
+                # Process this batch
+                with ThreadPoolExecutor(max_workers=n_processes) as executor:
+                    futures = {
+                        executor.submit(
+                            _process_concentration_gradient, p, self.config
+                        ): i
+                        for i, p in enumerate(batch_sim_entries)
+                    }
+                    gradients = [None] * len(batch_sim_entries)
+                    for future in tqdm(
+                        as_completed(futures),
+                        total=len(batch_sim_entries),
+                        desc=f"Batch {batch_start // batch_size + 1}",
+                    ):
+                        idx = futures[future]
+                        gradients[idx] = future.result()
+
+                # Update the dataset with the batch results (vectorized operation)
+                logger.info("Updating status log with batch results.")
+                # Stack gradients into a single DataArray for efficient batch update
+                batch_gradients = xr.concat(gradients, dim="sim_id")  # type: ignore
+                batch_gradients["sim_id"] = batch_sim_ids
+
+                # Use vectorized indexing instead of loop
+                for i, sim_id in enumerate(batch_sim_ids):
+                    sim_idx = self.sim_ids.index(sim_id)
+                    ds_status["concentration_vertical_profile"].values[sim_idx, :] = (
+                        batch_gradients.values[i, :]
+                    )
+
+                # Save intermediate results
+                logger.info(
+                    f"Saving intermediate results (batch {batch_start // batch_size + 1})"
+                )
+                ds_status.to_netcdf(self.status_log_path)
+
+            logger.info("All concentration gradients computed and saved.")
 
         return ds_status

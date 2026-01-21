@@ -369,6 +369,48 @@ def read_gral_windfield(
         return wind
 
 
+def read_con_file_mean(path: Path, GRAL: Any) -> float:
+    """Read GRAL concentration file and compute mean concentration.
+
+    Parameters
+    ----------
+    path : Path
+        Path to the concentration file.
+    GRAL : object or dict
+        GRAL configuration object or dict with nx, ny, dx, dy, xmin, ymin.
+
+    Returns
+    -------
+    float
+        Mean concentration value, or 0.0 if file is too small.
+    """
+    # Support both dict and object access patterns
+    get_val = GRAL.get if isinstance(GRAL, dict) else lambda k: getattr(GRAL, k)
+    nx = get_val("nx")
+    ny = get_val("ny")
+    dx = get_val("dx")
+    dy = get_val("dy")
+    xmin = get_val("xmin")
+    ymin = get_val("ymin")
+    assert isinstance(nx, int), "nx must be an integer."
+    assert isinstance(ny, int), "ny must be an integer."
+    assert isinstance(dx, float), "dx must be a float."
+    assert isinstance(dy, float), "dy must be a float."
+    assert isinstance(xmin, float), "xmin must be a float."
+    assert isinstance(ymin, float), "ymin must be a float."
+
+    with path.open("rb") as f:
+        data = f.read()
+
+    if len(data) <= 4:
+        return 0.0
+
+    # Define structured dtype for 'iif' format
+    dt = np.dtype([("x", "<i4"), ("y", "<i4"), ("val", "<f4")])
+    datarr = np.frombuffer(data[4:], dtype=dt)
+    return datarr["val"].sum() / (nx * ny)
+
+
 def read_con_file(path: Path, GRAL: Any) -> np.ndarray | None:
     """Read GRAL concentration file.
 

@@ -456,7 +456,7 @@ class Catalog:
             ]
 
             # Process in batches of 64
-            batch_size = 128
+            batch_size = 32
             for batch_start in range(0, len(sim_ids_to_process), batch_size):
                 batch_end = min(batch_start + batch_size, len(sim_ids_to_process))
                 batch_sim_ids = sim_ids_to_process[batch_start:batch_end]

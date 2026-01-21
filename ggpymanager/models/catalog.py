@@ -445,8 +445,9 @@ class Catalog:
             logger.info("All concentration gradients already computed.")
         else:
             logger.info(
-                f"Processing {len(sim_ids_to_process)} remaining concentration gradients "
-                f"using {n_processes} processes (out of {len(self.sim_ids)} total)."
+                f"Processing {len(sim_ids_to_process)} remaining concentration "
+                f"gradients using {n_processes} processes (out of {len(self.sim_ids)} "
+                f"total)."
             )
 
             # Get simulation paths for the simulations to process
@@ -482,7 +483,7 @@ class Catalog:
                         desc=f"Batch {batch_start // batch_size + 1}",
                     ):
                         idx = futures[future]
-                        gradients[idx] = future.result()
+                        gradients[idx] = future.result()  # type: ignore
 
                 # Update the dataset with the batch results (vectorized operation)
                 logger.info("Updating status log with batch results.")
@@ -499,7 +500,8 @@ class Catalog:
 
                 # Save intermediate results
                 logger.info(
-                    f"Saving intermediate results (batch {batch_start // batch_size + 1})"
+                    f"Saving intermediate results "
+                    f"(batch {batch_start // batch_size + 1})"
                 )
                 ds_status.to_netcdf(self.status_log_path)
 

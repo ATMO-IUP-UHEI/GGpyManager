@@ -106,16 +106,16 @@ def generate_timeseries(config):
         )
         return
     matching_path = Path(config["output_path"]) / ggp.config.MATCHING_LOSS_FILE_NAME
-    logging.info(f"Loading matching loss from {matching_path}")
+    logging.info(f"Opening matching loss from {matching_path}")
     matching_loss = xr.open_mfdataset(matching_path)
     fp = Path(config["gramm_meteo_path"]) / "meteo.nc"
-    logging.info(f"Loading GRAMM meteo from {fp}")
+    logging.info(f"Opening GRAMM meteo from {fp}")
     gramm_meteo = xr.open_mfdataset(fp)
     fp = Path(config["gral_meteo_path"]) / "meteo.nc"
-    logging.info(f"Loading GRAL meteo from {fp}")
+    logging.info(f"Opening GRAL meteo from {fp}")
     gral_meteo = xr.open_mfdataset(fp)
     fp = Path(config["gral_co2_path"]) / "co2.nc"
-    logging.info(f"Loading GRAL concentration from {fp}")
+    logging.info(f"Opening GRAL concentration from {fp}")
     gral_concentration = xr.open_mfdataset(fp)["concentration"]
     fp = config["temporal_profiles_path"]
     logging.info(f"Loading temporal profiles from {fp}")
@@ -147,11 +147,24 @@ def generate_timeseries(config):
         f"{matching_period['start']} to {matching_period['end']}."
     )
     logging.info("Generating concentration time series data...")
-    sim_ids = matching_loss["matching_loss"].idxmin("sim_id")
+    n_best_sims = config["matching"].get("n_best_simulations", 1)
+    logging.info(f"Selecting {n_best_sims} best matching simulation IDs.")
+    sim_ids = xr.concat(
+        [
+            ggp.analysis.get_sim_ids(
+                matching_loss.matching_loss.sel(loss_type=lt), n_best=n_best_sims
+            )
+            for lt in matching_loss.loss_type.values
+        ],
+        dim="loss_type",
+    )
 
     k = gral_concentration.sel(sim_id=sim_ids).astype("float32")
     f = temporal_factor.sel(type=source_groups["type"]).astype("float32")
     concentration_timeseries = (k * f).to_dataset(name="co2_timeseries")
+    concentration_timeseries = concentration_timeseries.groupby(
+        source_groups["type"]
+    ).sum()
     logging.info(f"Saving concentration timeseries to {concentration_timeseries_path}")
     if not concentration_timeseries_path.exists():
         with ProgressBar():

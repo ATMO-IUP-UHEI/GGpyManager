@@ -2,14 +2,13 @@
 
 import logging
 
+import dask.array.core
 import numpy as np
 import xarray as xr
 
+from ggpymanager.processing.wind import (direction_from_vector,
+                                         wind_speed_from_vector)
 from ggpymanager.utils.decorators import check_docstring_dims
-from ggpymanager.processing.wind import (
-    direction_from_vector,
-    wind_speed_from_vector,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +151,7 @@ def compute_matching_loss(
     synoptic_wind_speed=None,
     global_radiation=None,
     stab_class_catalog=None,
-):
+) -> xr.DataArray:
     """Compute matching loss between observations and model catalog.
 
     Input for N hours, S stations, and M catalog entries.
@@ -221,3 +220,35 @@ def compute_matching_loss(
     matching_loss.attrs["long_name"] = f"{matching} loss"
     matching_loss.attrs["units"] = ""
     return matching_loss
+
+
+@check_docstring_dims
+def get_sim_ids(matching_loss: xr.DataArray, n_best: int = 1) -> xr.DataArray:
+    """Get the best matching simulation IDs based on matching loss.
+
+    Parameters
+    ----------
+    matching_loss : xr.DataArray (time, sim_id)
+        Matching loss for each hour and catalog entry.
+    n_best : int, optional
+        Number of best matching simulation IDs to return. Default is 1.
+
+    Returns
+    -------
+    best_sim_ids : xr.DataArray (time, best_sim_id)
+        Best matching simulation IDs for each hour.
+    """
+    if isinstance(matching_loss.data, dask.array.core.Array):
+        logging.info("Loading matching loss into memory for sim ID selection...")
+        matching_loss = matching_loss.load()
+    sim_id_axis = list(matching_loss.sizes).index("sim_id")
+    best_sim_ids = (
+        matching_loss.argsort(axis=sim_id_axis)
+        .isel(sim_id=slice(0, n_best))
+        .rename(sim_id="best_sim_id")
+        + 1
+    )
+    best_sim_ids = best_sim_ids.assign_coords(best_sim_id=np.arange(n_best))
+    best_sim_ids.attrs["long_name"] = f"Best {n_best} matching simulation IDs"
+    best_sim_ids.attrs["units"] = ""
+    return best_sim_ids

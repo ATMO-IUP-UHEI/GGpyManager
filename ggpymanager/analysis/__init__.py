@@ -5,6 +5,7 @@ from .loss_functions import (
     regularized_loss,
     compound_loss,
     compute_matching_loss,
+    get_sim_ids,
 )
 from .stability import get_allowed_stability_class, load_catalog_filter
 
@@ -14,6 +15,7 @@ __all__ = [
     "regularized_loss",
     "compound_loss",
     "compute_matching_loss",
+    "get_sim_ids",
     # Stability
     "get_allowed_stability_class",
     "load_catalog_filter",

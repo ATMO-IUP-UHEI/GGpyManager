@@ -158,13 +158,15 @@ def generate_timeseries(config):
         ],
         dim="loss_type",
     )
-
-    k = gral_concentration.sel(sim_id=sim_ids).astype("float32")
-    f = temporal_factor.sel(type=source_groups["type"]).astype("float32")
+    k = (
+        gral_concentration.groupby(source_groups["type"]).sum()
+    ).astype("float32").compute()
+    k = k.sel(sim_id=sim_ids)
+    f = temporal_factor.astype("float32")
+    # Old method with source groups - commented out
+    # k = gral_concentration.sel(sim_id=sim_ids).astype("float32")
+    # f = temporal_factor.sel(type=source_groups["type"]).astype("float32")
     concentration_timeseries = (k * f).to_dataset(name="co2_timeseries")
-    concentration_timeseries = concentration_timeseries.groupby(
-        source_groups["type"]
-    ).sum()
     logging.info(f"Saving concentration timeseries to {concentration_timeseries_path}")
     if not concentration_timeseries_path.exists():
         with ProgressBar():

@@ -27,6 +27,8 @@ from .geometry import (
 )
 from .landuse import convert_to_gramm_landuse_variables, load_corine_lookup_table
 
+from . import google_earth
+
 __all__ = [
     # Concentration
     "convert_locations_to_grid",
@@ -53,4 +55,6 @@ __all__ = [
     # Land use
     "convert_to_gramm_landuse_variables",
     "load_corine_lookup_table",
+    # Google Earth
+    "google_earth",
 ]

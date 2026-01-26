@@ -41,8 +41,8 @@ def generate_matching_loss_file(config):
             for s, m in config["matching"]["stations"].items()
         ],
         dim="station",
-        coords="minimal",
-        compat="override",
+        coords="different",
+        compat="equals",
     )
     meteo_measurements = meteo.sel(
         station=model_meteo["station"],
@@ -159,8 +159,10 @@ def generate_timeseries(config):
         dim="loss_type",
     )
     k = (
-        gral_concentration.groupby(source_groups["type"]).sum()
-    ).astype("float32").compute()
+        (gral_concentration.groupby(source_groups["type"]).sum())
+        .astype("float32")
+        .compute()
+    )
     k = k.sel(sim_id=sim_ids)
     f = temporal_factor.astype("float32")
     # Old method with source groups - commented out

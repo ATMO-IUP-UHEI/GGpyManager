@@ -68,7 +68,7 @@ GRAL_METEO_TIMESERIES_FILE_NAME = "gral_meteo_timeseries.nc"
 class BBox(BaseModel):
     """Bounding box coordinates in the specified CRS."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     x0: float = Field(..., description="Western boundary coordinate")
     y0: float = Field(..., description="Southern boundary coordinate")
@@ -86,7 +86,7 @@ class BBox(BaseModel):
 class GralConfig(BaseModel):
     """GRAL model configuration parameters."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     conf_path: str = Field(..., description="Path to GRAL configuration directory")
     bbox: BBox = Field(..., description="GRAL domain bounding box")
@@ -97,7 +97,7 @@ class GralConfig(BaseModel):
 class GrammConfig(BaseModel):
     """GRAMM model configuration parameters."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     conf_path: str = Field(..., description="Path to GRAMM configuration directory")
     bbox: BBox = Field(..., description="GRAMM domain bounding box")
@@ -113,7 +113,7 @@ class GrammConfig(BaseModel):
 class Domain(BaseModel):
     """Spatial domain configuration for GRAMM and GRAL models."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     crs: str = Field(..., description="Coordinate reference system (e.g., EPSG:2154)")
     gral: GralConfig = Field(..., description="GRAL model domain configuration")
@@ -123,7 +123,7 @@ class Domain(BaseModel):
 class Fluxes(BaseModel):
     """Emission flux grid configuration."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     nx_areas: int = Field(
         ..., gt=0, description="Number of emission areas in x-direction"
@@ -136,7 +136,7 @@ class Fluxes(BaseModel):
 class Matching(BaseModel):
     """Configuration for matching simulations with station measurements."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     stations: dict[str, Literal["gral", "gramm"]] = Field(
         ..., description="Station names mapped to their model domain (gral or gramm)"
@@ -164,7 +164,7 @@ class Matching(BaseModel):
 class Config(BaseModel):
     """Main configuration for Paris 2025 simulation project."""
 
-    model_config = ConfigDict(extra='forbid')
+    model_config = ConfigDict(extra="forbid")
 
     main_path: str = Field(..., description="Main working directory path")
     data_path: str = Field(..., description="Path to input data directory")

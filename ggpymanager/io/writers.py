@@ -1,11 +1,13 @@
 """File writers for GRAMM/GRAL model input files."""
 
 import logging
+import tempfile
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import xarray as xr
+from compliance_checker.runner import CheckSuite, ComplianceChecker
 
 # Constants
 LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
@@ -356,3 +358,75 @@ def write_ggeom_file(geom: xr.Dataset, file_path: str | Path) -> None:
 
         line = data_to_str(geom["AHE"])
         file.write(line + "\n")
+
+
+def save_with_cf_check(
+    dataset: xr.Dataset, path: str | Path, **to_netcdf_kwargs
+) -> bool:
+    """
+    Save a dataset to netCDF only if it passes CF compliance checks.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset to save
+    path : str | Path
+        Output path for the netCDF file
+    **to_netcdf_kwargs
+        Additional arguments passed to dataset.to_netcdf()
+
+    Returns
+    -------
+    bool
+        True if file was saved successfully, False if CF check failed
+    """
+    path = Path(path)
+
+    # Save to temporary file first
+    with tempfile.NamedTemporaryFile(suffix="." + str(path.name), delete=False) as tmp:
+        tmp_path = tmp.name
+        # Determine unlimited dimensions if not provided
+        if "time" in dataset.dims:
+            unlimited_dims = ("time",)
+            logging.info("Setting 'time' as unlimited dimension for netCDF output.")
+        else:
+            unlimited_dims = None
+        # Add units_metadata attribute if not present
+        for var in dataset.variables:
+            if dataset[var].attrs.get("standard_name", "") == "time":
+                if "units_metadata" not in dataset[var].attrs:
+                    logging.info(
+                        f"Adding 'units_metadata' attribute to '{var}' variable."
+                    )
+                    dataset[var].attrs.update(
+                        {"units_metadata": "leap_seconds: utc"}
+                    )
+        to_netcdf_kwargs.setdefault("unlimited_dims", unlimited_dims)
+        dataset.to_netcdf(tmp_path, **to_netcdf_kwargs)
+
+    try:
+        # Run CF checker
+        check_suite = CheckSuite()
+        check_suite.load_all_available_checkers()
+        return_value, errors = ComplianceChecker.run_checker(
+            tmp_path, checker_names=["cf:1.11"], verbose=2, criteria="strict"
+        )
+
+        if errors or not return_value:
+            logging.error(f"File NOT saved due to CF compliance errors: {path}")
+            Path(tmp_path).unlink()  # Delete temp file
+            return False
+        else:
+            # Move temp file to final destination
+            Path(tmp_path).rename(path)
+            logging.info(f"File saved successfully: {path}")
+            return True
+
+    except Exception as e:
+        logging.error(f"Error during CF check: {e}")
+        Path(tmp_path).unlink(missing_ok=True)
+        return False
+
+
+# Usage example:
+# success = save_with_cf_check(my_dataset, "output.nc", engine="netcdf4")

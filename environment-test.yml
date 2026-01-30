@@ -29,6 +29,7 @@ dependencies:
   # Utility
   - tqdm
   - click
+  - pydantic
   - pyyaml
   
   # Development

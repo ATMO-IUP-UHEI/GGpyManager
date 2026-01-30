@@ -1,5 +1,6 @@
 """File readers for GRAMM/GRAL model input and output files."""
 
+import logging
 import struct
 import zipfile
 from importlib import resources
@@ -10,7 +11,10 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 import yaml
+from pydantic import ValidationError
 from scipy import sparse
+
+from ggpymanager.config import Config
 
 # Constants
 LANDUSE_VARS = ["RHOB", "ALAMBDA", "Z0", "FW", "EPSG", "ALBEDO"]
@@ -687,6 +691,37 @@ def replace_relative_paths(main_path: str, config: dict) -> dict:
     return config
 
 
+def load_config_with_warnings(yaml_path: str | Path):
+    """Load config, warn on validation errors but don't crash."""
+    with open(yaml_path) as f:
+        data = yaml.safe_load(f)
+
+    try:
+        Config(**data)
+        return data
+    except ValidationError as e:
+        for error in e.errors():
+            field_path = " -> ".join(str(x) for x in error["loc"])
+            msg = f"'{field_path}': {error['msg']}"
+            msg = msg.ljust(60)
+            # Try to get field description
+            try:
+                model = Config
+                for key in error["loc"][:-1]:
+                    model = model.model_fields[key].annotation  # type: ignore
+
+                field_info = model.model_fields.get(error["loc"][-1])  # type: ignore
+                if field_info and field_info.description:
+                    msg += f" | Expected: {field_info.description}"
+            except (KeyError, AttributeError, TypeError):
+                pass  # Ignore if we can't get description
+
+            # warnings.warn(msg, UserWarning)
+            logging.warning(msg)
+
+        return data  # Return raw dict if validation fails
+
+
 def read_project_yaml_file(path: str | Path) -> dict:
     """Read project YAML file and replace relative paths with absolute paths.
 
@@ -700,8 +735,7 @@ def read_project_yaml_file(path: str | Path) -> dict:
     dict
         Dictionary containing project configuration.
     """
-    with open(path, "r") as f:
-        config = yaml.safe_load(f)
+    config = load_config_with_warnings(path)
     main_path = config["main_path"]
     config = replace_relative_paths(main_path, config)
     return config

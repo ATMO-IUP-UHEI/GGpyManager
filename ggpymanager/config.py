@@ -218,7 +218,7 @@ NETCDF_METADATA = {
     },
     "n_processors": {
         "long_name": "Number of processors",
-        "units": 1,
+        "units": "1",
         "description": "Number of CPU cores used",
     },
     "n_source_groups": {

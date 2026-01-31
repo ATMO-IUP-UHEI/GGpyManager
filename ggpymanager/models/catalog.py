@@ -331,16 +331,56 @@ class Catalog:
                     n_time_steps = max(n_time_steps, len(lst))
 
         ds = xr.Dataset(
-            coords={"sim_id": self.sim_ids, "time": np.arange(n_time_steps)}
+            coords={"sim_id": self.sim_ids, "iteration": np.arange(n_time_steps)}
         )
+        
+        # Add metadata to coordinates
+        ds["sim_id"].attrs = {
+            "long_name": "Simulation ID",
+            "description": "Unique identifier for each simulation"
+        }
+        ds["iteration"].attrs = {
+            "long_name": "Iteration step",
+            "description": "Iteration step index for time-varying simulation parameters"
+        }
+        
+        # Define metadata for each variable
+        variable_metadata = {
+            "version": {"long_name": "Model version", "description": "GRAMM/GRAL version string"},
+            "plattform": {"long_name": "Platform", "description": "Operating system platform"},
+            "dotnet_version": {"long_name": ".NET version", "description": ".NET runtime version"},
+            "n_processors": {"long_name": "Number of processors", "description": "Number of CPU cores used"},
+            "ggeom_file_read": {"long_name": "Geometry file read status", "description": "Whether geometry file was successfully read"},
+            "min_elevation": {"long_name": "Minimum elevation", "units": "m", "description": "Minimum terrain elevation in domain"},
+            "max_elevation": {"long_name": "Maximum elevation", "units": "m", "description": "Maximum terrain elevation in domain"},
+            "init_wind_speed": {"long_name": "Initial wind speed", "units": "m s-1", "description": "Initial wind speed for simulation"},
+            "init_direction": {"long_name": "Initial wind direction", "units": "degree", "description": "Initial wind direction"},
+            "u_component": {"long_name": "U wind component", "units": "m s-1", "description": "Zonal wind component"},
+            "v_component": {"long_name": "V wind component", "units": "m s-1", "description": "Meridional wind component"},
+            "init_stability_class": {"long_name": "Initial stability class", "description": "Atmospheric stability class"},
+            "init_obukhov_length": {"long_name": "Initial Obukhov length", "units": "m", "description": "Initial Obukhov length for stability"},
+            "roughness_length": {"long_name": "Surface roughness length", "units": "m", "description": "Aerodynamic roughness length"},
+            "init_boundary_layer_height": {"long_name": "Initial boundary layer height", "units": "m", "description": "Initial height of atmospheric boundary layer"},
+            "friction_velocity": {"long_name": "Friction velocity", "units": "m s-1", "description": "Surface friction velocity"},
+            "simulation_attempt": {"long_name": "Simulation attempt number", "description": "Iteration attempt number"},
+            "simulation_time": {"long_name": "Simulation time", "units": "s", "description": "Total simulation time"},
+            "simulation_timestep": {"long_name": "Simulation timestep", "units": "s", "description": "Time step size"},
+            "simulation_divergence": {"long_name": "Simulation divergence", "description": "Maximum divergence value"},
+        }
+        
         for key, values in data.items():
             if isinstance(values[0], list):
                 arr = np.full((len(values), n_time_steps), np.nan)
                 for i, lst in enumerate(values):
                     arr[i, : len(lst)] = lst
-                ds[key] = (("sim_id", "time"), arr)
+                ds[key] = (("sim_id", "iteration"), arr)
             else:
                 ds[key] = (("sim_id",), values)
+            
+            # Add metadata if available
+            if key in variable_metadata:
+                ds[key].attrs = variable_metadata[key]
+        
         for key in ds.data_vars:
             if ds[key].dtype == np.float64:
                 ds[key] = ds[key].astype(np.float32)
@@ -359,10 +399,12 @@ class Catalog:
         total_disk_space_gb = total_disk_space_bytes / (1024**3)
 
         ds.attrs = {
+            "Conventions": "CF-1.11",
             "title": f"{self.model.capitalize()} simulation logs",
             "description": (
                 f"Parsed {self.model.capitalize()} log files from multiple simulations."
             ),
+            "history": f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "disk_usage_summary": (
                 f"Total disk space used: {total_disk_space_gb:.2f} "
                 f"GiB ({total_disk_space_bytes} bytes)."

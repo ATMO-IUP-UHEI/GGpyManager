@@ -389,6 +389,9 @@ def save_netcdf_with_cf_check(
         if "time" in dataset.dims:
             unlimited_dims = ("time",)
             logging.info("Setting 'time' as unlimited dimension for netCDF output.")
+        elif "iteration" in dataset.dims:
+            unlimited_dims = ("iteration",)
+            logging.info("Setting 'iteration' as unlimited dimension for netCDF output.")
         else:
             unlimited_dims = None
         # Add units_metadata attribute if not present

@@ -1,3 +1,4 @@
+# conda env update --file environment-test.yml
 name: ggpymanager-test
 channels:
   - conda-forge
@@ -31,6 +32,7 @@ dependencies:
   - click
   - pydantic
   - pyyaml
+  - compliance-checker
   
   # Development
   - pip

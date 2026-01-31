@@ -72,6 +72,7 @@ def generate_matching_loss_file(config):
             loss["loss_type"] = [f"{loss_type} - filter: {filter}"]
             losses.append(loss)
     matching_loss = xr.concat(losses, dim="loss_type")
+    assert isinstance(matching_loss, xr.Dataset)
     n_stations_per_time = (
         meteo_measurements["u_wind"].notnull() & meteo_measurements["v_wind"].notnull()
     ).sum("station")
@@ -81,7 +82,7 @@ def generate_matching_loss_file(config):
     }
     matching_path.parent.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving matching loss to {matching_path}")
-    matching_loss.to_netcdf(matching_path)
+    ggp.io.writers.save_netcdf_with_cf_check(matching_loss, matching_path)
 
 
 def generate_timeseries(config):
@@ -172,16 +173,22 @@ def generate_timeseries(config):
     logging.info(f"Saving concentration timeseries to {concentration_timeseries_path}")
     if not concentration_timeseries_path.exists():
         with ProgressBar():
-            concentration_timeseries.to_netcdf(concentration_timeseries_path)
+            ggp.io.writers.save_netcdf_with_cf_check(
+                concentration_timeseries, concentration_timeseries_path
+            )
 
     logging.info("Generating GRAMM meteo time series data...")
     gramm_meteo_timeseries = gramm_meteo.sel(sim_id=sim_ids).astype("float32")
     logging.info(f"Saving GRAMM meteo timeseries to {gramm_meteo_timeseries_path}")
     if not gramm_meteo_timeseries_path.exists():
-        gramm_meteo_timeseries.to_netcdf(gramm_meteo_timeseries_path)
+        ggp.io.writers.save_netcdf_with_cf_check(
+            gramm_meteo_timeseries, gramm_meteo_timeseries_path
+        )
 
     logging.info("Generating GRAL meteo time series data...")
     gral_meteo_timeseries = gral_meteo.sel(sim_id=sim_ids).astype("float32")
     logging.info(f"Saving GRAL meteo timeseries to {gral_meteo_timeseries_path}")
     if not gral_meteo_timeseries_path.exists():
-        gral_meteo_timeseries.to_netcdf(gral_meteo_timeseries_path)
+        ggp.io.writers.save_netcdf_with_cf_check(
+            gral_meteo_timeseries, gral_meteo_timeseries_path
+        )

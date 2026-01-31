@@ -360,7 +360,7 @@ def write_ggeom_file(geom: xr.Dataset, file_path: str | Path) -> None:
         file.write(line + "\n")
 
 
-def save_with_cf_check(
+def save_netcdf_with_cf_check(
     dataset: xr.Dataset, path: str | Path, **to_netcdf_kwargs
 ) -> bool:
     """

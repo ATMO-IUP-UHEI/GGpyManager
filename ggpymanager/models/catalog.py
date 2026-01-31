@@ -242,7 +242,7 @@ class Catalog:
             logger.info("No status log found. Creating a new one.")
             data = self._get_summary()
             ds = self._create_status_log(data)
-            ds.to_netcdf(self.status_log_path)
+            io.writers.save_netcdf_with_cf_check(ds, self.status_log_path)
             logger.info(f"Status log created at {self.status_log_path}")
         logger.info(ds)
 
@@ -412,7 +412,7 @@ class Catalog:
                 gradients, dim="sim_id", join="outer"  # type: ignore
             )  # type: ignore
             logger.info("Saving updated status log with vertical gradients.")
-            ds_status.to_netcdf(self.status_log_path)
+            io.writers.save_netcdf_with_cf_check(ds_status, self.status_log_path)
 
         # Process concentration gradients with incremental saving
         if "concentration_vertical_profile" not in ds_status.data_vars:
@@ -428,7 +428,7 @@ class Catalog:
                 },
             )
             ds_status["concentration_vertical_profile"] = empty_profile
-            ds_status.to_netcdf(self.status_log_path)
+            io.writers.save_netcdf_with_cf_check(ds_status, self.status_log_path)
             logger.info("Initialized concentration_vertical_profile variable.")
 
         # Find which simulations still need processing
@@ -503,7 +503,7 @@ class Catalog:
                     f"Saving intermediate results "
                     f"(batch {batch_start // batch_size + 1})"
                 )
-                ds_status.to_netcdf(self.status_log_path)
+                io.writers.save_netcdf_with_cf_check(ds_status, self.status_log_path)
 
             logger.info("All concentration gradients computed and saved.")
 

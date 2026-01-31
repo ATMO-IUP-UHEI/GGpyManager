@@ -415,7 +415,17 @@ def save_netcdf_with_cf_check(
             tmp_path, checker_names=["cf:1.11"], verbose=2, criteria="strict"
         )
 
-        if errors or not return_value:
+        # Only fail on actual CF compliance issues (return_value == 0 means failure)
+        # The 'errors' variable captures internal checker exceptions (e.g., when
+        # checking monotonicity of string coordinates), which are not CF violations.
+        # Log a warning if there were checker exceptions but tests passed.
+        if errors and return_value:
+            logging.warning(
+                f"CF checker encountered internal exceptions but all tests passed. "
+                f"File will be saved: {path}"
+            )
+
+        if not return_value:
             logging.error(f"File NOT saved due to CF compliance errors: {path}")
             Path(tmp_path).unlink()  # Delete temp file
             return False

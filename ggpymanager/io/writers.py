@@ -2,6 +2,7 @@
 
 import logging
 import tempfile
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -386,25 +387,7 @@ def save_netcdf_with_cf_check(
     with tempfile.NamedTemporaryFile(suffix="." + str(path.name), delete=False) as tmp:
         tmp_path = tmp.name
         # Determine unlimited dimensions if not provided
-        if "time" in dataset.dims:
-            unlimited_dims = ("time",)
-            logging.info("Setting 'time' as unlimited dimension for netCDF output.")
-        elif "iteration" in dataset.dims:
-            unlimited_dims = ("iteration",)
-            logging.info(
-                "Setting 'iteration' as unlimited dimension for netCDF output."
-            )
-        else:
-            unlimited_dims = None
-        # Add units_metadata attribute if not present
-        for var in dataset.variables:
-            if dataset[var].attrs.get("standard_name", "") == "time":
-                if "units_metadata" not in dataset[var].attrs:
-                    logging.info(
-                        f"Adding 'units_metadata' attribute to '{var}' variable."
-                    )
-                    dataset[var].attrs.update({"units_metadata": "leap_seconds: utc"})
-        to_netcdf_kwargs.setdefault("unlimited_dims", unlimited_dims)
+        prepare_netcdf_dataset(dataset, to_netcdf_kwargs)
         dataset.to_netcdf(tmp_path, **to_netcdf_kwargs)
 
     try:
@@ -441,5 +424,29 @@ def save_netcdf_with_cf_check(
         return False
 
 
-# Usage example:
-# success = save_with_cf_check(my_dataset, "output.nc", engine="netcdf4")
+def prepare_netcdf_dataset(dataset, to_netcdf_kwargs):
+    if "time" in dataset.dims:
+        unlimited_dims = ("time",)
+        logging.info("Setting 'time' as unlimited dimension for netCDF output.")
+    elif "iteration" in dataset.dims:
+        unlimited_dims = ("iteration",)
+        logging.info("Setting 'iteration' as unlimited dimension for netCDF output.")
+    else:
+        unlimited_dims = None
+        # Add units_metadata attribute if not present
+    for var in dataset.variables:
+        if dataset[var].attrs.get("standard_name", "") == "time":
+            if "units_metadata" not in dataset[var].attrs:
+                logging.info(f"Adding 'units_metadata' attribute to '{var}' variable.")
+                dataset[var].attrs.update({"units_metadata": "leap_seconds: utc"})
+    to_netcdf_kwargs.setdefault("unlimited_dims", unlimited_dims)
+
+    # Add global attributes for CF compliance if not present
+    if "Conventions" not in dataset.attrs:
+        dataset.attrs["Conventions"] = "CF-1.11"
+        logging.info("Adding 'Conventions' global attribute for CF compliance.")
+    if "history" not in dataset.attrs:
+        dataset.attrs["history"] = (
+            f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
+        logging.info("Adding 'history' global attribute.")

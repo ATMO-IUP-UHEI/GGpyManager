@@ -173,7 +173,7 @@ def read_gral_stdout(path: str) -> GRALLogMetadata:
                 case _ if "GRAMM meteo:" in l:
                     meteo_data = parse_meteo_data(l)
                     lm.gramm_wind_speed = meteo_data["wind_speed"]
-                    lm.gramm_direction = meteo_data["direction"]
+                    lm.gramm_wind_direction = meteo_data["direction"]
                     lm.gramm_stability_class = meteo_data["stability_class"]
 
                 case _ if "Total simulation time" in l:

@@ -62,7 +62,7 @@ class GRALLogMetadata:
         Initial stability class.
     gramm_wind_speed : Optional[float]
         GRAMM wind speed.
-    gramm_direction : Optional[float]
+    gramm_wind_direction : Optional[float]
         GRAMM wind direction.
     gramm_stability_class : Optional[float]
         GRAMM stability class.
@@ -100,7 +100,7 @@ class GRALLogMetadata:
     init_direction: Optional[float] = None
     init_stability_class: Optional[float] = None
     gramm_wind_speed: Optional[float] = None
-    gramm_direction: Optional[float] = None
+    gramm_wind_direction: Optional[float] = None
     gramm_stability_class: Optional[float] = None
     total_simulation_time: Optional[float] = None
     dispersion_time: Optional[float] = None

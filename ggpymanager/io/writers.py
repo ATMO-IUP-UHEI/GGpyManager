@@ -391,7 +391,9 @@ def save_netcdf_with_cf_check(
             logging.info("Setting 'time' as unlimited dimension for netCDF output.")
         elif "iteration" in dataset.dims:
             unlimited_dims = ("iteration",)
-            logging.info("Setting 'iteration' as unlimited dimension for netCDF output.")
+            logging.info(
+                "Setting 'iteration' as unlimited dimension for netCDF output."
+            )
         else:
             unlimited_dims = None
         # Add units_metadata attribute if not present
@@ -401,9 +403,7 @@ def save_netcdf_with_cf_check(
                     logging.info(
                         f"Adding 'units_metadata' attribute to '{var}' variable."
                     )
-                    dataset[var].attrs.update(
-                        {"units_metadata": "leap_seconds: utc"}
-                    )
+                    dataset[var].attrs.update({"units_metadata": "leap_seconds: utc"})
         to_netcdf_kwargs.setdefault("unlimited_dims", unlimited_dims)
         dataset.to_netcdf(tmp_path, **to_netcdf_kwargs)
 

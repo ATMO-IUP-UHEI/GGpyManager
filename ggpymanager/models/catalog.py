@@ -341,7 +341,8 @@ class Catalog:
         }
         ds["iteration"].attrs = {
             "long_name": "Iteration step",
-            "description": "Iteration step index for time-varying simulation parameters",
+            "description": "Iteration step index for time-varying simulation "
+            "parameters",
         }
 
         # Define metadata for each variable

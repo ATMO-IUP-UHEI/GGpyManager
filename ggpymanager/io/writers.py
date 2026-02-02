@@ -391,6 +391,15 @@ def save_netcdf_with_cf_check(
         dataset.to_netcdf(tmp_path, **to_netcdf_kwargs)
 
     try:
+        # Check if CRS information is present
+        if any(v in dataset.variables for v in ["x", "y", "lat", "lon"]):
+            # Assert that ds.rio.crs is not None
+            if not hasattr(dataset, "rio") or dataset.rio.crs is None:
+                assert False, (
+                    "Dataset has spatial coordinates but no CRS information. "
+                    "Please set the CRS using dataset.rio.write_crs()."
+                )
+
         # Run CF checker
         check_suite = CheckSuite()
         check_suite.load_all_available_checkers()
@@ -425,6 +434,7 @@ def save_netcdf_with_cf_check(
 
 
 def prepare_netcdf_dataset(dataset, to_netcdf_kwargs):
+    # Determine unlimited dimensions
     if "time" in dataset.dims:
         unlimited_dims = ("time",)
         logging.info("Setting 'time' as unlimited dimension for netCDF output.")
@@ -450,3 +460,9 @@ def prepare_netcdf_dataset(dataset, to_netcdf_kwargs):
             f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         logging.info("Adding 'history' global attribute.")
+    
+    # Add long_name to "spatial_ref" variable if missing
+    if "spatial_ref" in dataset.variables:
+        if "long_name" not in dataset["spatial_ref"].attrs:
+            dataset["spatial_ref"].attrs["long_name"] = "CRS definition"
+            logging.info("Adding 'long_name' attribute to 'spatial_ref' variable.")

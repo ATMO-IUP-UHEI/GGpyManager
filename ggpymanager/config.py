@@ -399,4 +399,17 @@ NETCDF_METADATA = {
         "long_name": "GRAMM stability class",
         "description": "Stability class output from GRAMM model",
     },
+    # Meteo variables
+    "temperature": {
+        "long_name": "Air temperature",
+        "units": "K",
+        "description": "Air temperature",
+        "units_metadata": 'temperature: on_scale',
+    },
+    "pressure": {
+        "long_name": "Air pressure",
+        "units": "Pa",
+        "description": "Air pressure",
+        # "units_metadata": 'pressure: absolute',
+    },
 }

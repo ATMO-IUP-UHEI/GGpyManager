@@ -381,8 +381,8 @@ def save_netcdf_with_cf_check(
     bool
         True if file was saved successfully, False if CF check failed
     """
+    assert isinstance(dataset, xr.Dataset), "Input must be an xarray Dataset."
     path = Path(path)
-
     # Save to temporary file first
     with tempfile.NamedTemporaryFile(suffix="." + str(path.name), delete=False) as tmp:
         tmp_path = tmp.name

@@ -138,9 +138,11 @@ def ugm3_to_ppm(
 def check_ppm_range(ppm):
     if np.min(ppm) < 0:
         logging.warning("Converted ppm values contain negative values.")
+        logging.warning(f"Minimum value: {np.min(ppm)} ppm")
     if np.min(ppm) < -100:
         logging.error("Converted ppm values contain values less than -100 ppm.")
     if np.max(ppm) > 100:
         logging.warning("Converted ppm values contain values greater than 100 ppm.")
+        logging.warning(f"Maximum value: {np.max(ppm)} ppm")
     if np.max(ppm) > 1000:
         logging.error("Converted ppm values contain values greater than 1,000 ppm.")

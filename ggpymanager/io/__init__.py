@@ -1,5 +1,7 @@
 """I/O operations for GRAMM/GRAL model files."""
 
+from .file_api import load
+
 from .readers import (
     read_gral_config,
     read_landuse,
@@ -35,6 +37,8 @@ from .parsers import (
 )
 
 __all__ = [
+    # File API
+    "load",
     # Readers
     "read_gral_config",
     "read_landuse",

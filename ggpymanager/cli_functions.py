@@ -50,8 +50,14 @@ def generate_matching_loss_file(config):
     )
     logging.info("Computing matching loss...")
     losses = []
+    if "loss_types" in config["matching"]:
+        loss_types = config["matching"]["loss_types"]
+        logging.info(f"Using specified loss types: {loss_types}")
+    else:
+        loss_types = ["rmse", "regularized", "compound"]
+        logging.info(f"No loss types specified in config, using default: {loss_types}")
     for filter in [False, True]:
-        for loss_type in ["rmse", "regularized", "compound"]:
+        for loss_type in loss_types:
             loss = ggp.analysis.compute_matching_loss(
                 meteo_measurements["u_wind"],
                 meteo_measurements["v_wind"],
@@ -72,7 +78,10 @@ def generate_matching_loss_file(config):
             loss["loss_type"] = [f"{loss_type} - filter: {filter}"]
             losses.append(loss)
     matching_loss = xr.concat(losses, dim="loss_type")
-    assert isinstance(matching_loss, xr.Dataset)
+    assert isinstance(
+        matching_loss, xr.DataArray
+    ), f"Variable 'matching_loss' is not a DataArray, got {type(matching_loss)}"
+    matching_loss = matching_loss.to_dataset(name="matching_loss")  # type: ignore
     n_stations_per_time = (
         meteo_measurements["u_wind"].notnull() & meteo_measurements["v_wind"].notnull()
     ).sum("station")
@@ -80,6 +89,10 @@ def generate_matching_loss_file(config):
     matching_loss["n_stations_per_time"].attrs = {
         "long_name": "Number of stations with valid measurements per time step",
     }
+    matching_loss["sim_id"].attrs = {"long_name": "Simulation ID", "units": "1"}
+    matching_loss.attrs["title"] = (
+        "Matching loss between GRAMM/GRAL simulations and meteorological measurements"
+    )
     matching_path.parent.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving matching loss to {matching_path}")
     ggp.io.writers.save_netcdf_with_cf_check(matching_loss, matching_path)

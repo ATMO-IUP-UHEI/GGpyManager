@@ -374,7 +374,7 @@ class Catalog:
                 f"Total disk space used: {total_disk_space_gb:.2f} "
                 f"GiB ({total_disk_space_bytes} bytes)."
             ),
-            "simulation_path": self.simulation_path.as_posix(),
+            "simulation_path": self.simulation_path.resolve().as_posix(),
             "model": self.model,
         }
         return ds

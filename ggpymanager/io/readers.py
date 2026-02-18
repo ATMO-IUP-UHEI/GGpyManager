@@ -373,6 +373,93 @@ def read_gral_windfield(
         return wind
 
 
+def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
+    """Read GRAL cadastre file and return as xarray DataArray.
+
+    Parameters
+    ----------
+    path : str | Path
+        Path to the cadastre.dat file.
+    GRAL : object or dict
+        GRAL configuration object or dict with nx, ny, dx, dy, west_border,
+        south_border, east_border, north_border (or xmin, ymin, xmax, ymax).
+
+    Returns
+    -------
+    xr.DataArray
+        DataArray with emissions gridded by x, y, and source_group dimensions.
+        Emissions are in the original units from the file (typically kg/h).
+    """
+    # Support both dict and object access patterns
+    get_val = GRAL.get if isinstance(GRAL, dict) else lambda k: getattr(GRAL, k)
+    dx = get_val("dx")
+    dy = get_val("dy")
+
+    # Support both naming conventions for bounding box
+    if (
+        "west_border" in GRAL
+        and "south_border" in GRAL
+        and "east_border" in GRAL
+        and "north_border" in GRAL
+    ):
+        xmin = get_val("west_border")
+        ymin = get_val("south_border")
+        xmax = get_val("east_border")
+        ymax = get_val("north_border")
+    else:
+        xmin = get_val("x0")
+        ymin = get_val("y0")
+        xmax = get_val("x1")
+        ymax = get_val("y1")
+
+    assert isinstance(dx, (int, float)), f"dx={dx} must be numeric."
+    assert isinstance(dy, (int, float)), f"dy={dy} must be numeric."
+    assert isinstance(xmin, (int, float)), f"xmin={xmin} must be numeric."
+    assert isinstance(ymin, (int, float)), f"ymin={ymin} must be numeric."
+
+    # Read cadastre file
+    cadastre = pd.read_csv(path)
+
+    if "source group" in cadastre.columns:
+        cadastre = cadastre.rename(columns={"source group": "source_group"})
+        logging.warning(
+            "Cadastre file contains deprecated 'source group' column name. Renamed to "
+            "'source_group'."
+        )
+
+    emissions_before = cadastre["Emission [kg/h]"].sum()
+    cadastre["Emission [kg/h]"] = cadastre["Emission [kg/h]"].astype(np.float32)
+    emissions_after = cadastre["Emission [kg/h]"].sum()
+
+    if not np.isclose(emissions_before, emissions_after):
+        logging.warning(
+            f"Total emissions changed after type conversion: "
+            f"before={emissions_before}, "
+            f"after={emissions_after}"
+        )
+
+    # Group by x, y, and source group, summing emissions
+    grouped = cadastre.groupby(["x", "y", "source_group"])["Emission [kg/h]"].sum()
+
+    # Convert to dask-backed xarray so downstream reindex and reductions are lazy
+    emissions_data_array = grouped.to_xarray()
+
+    # Fill in NaNs for missing grid cells (those with zero emissions)
+    emissions_data_array = emissions_data_array.fillna(0)
+
+    # Add metadata
+    emissions_data_array.attrs.update(
+        {
+            "units": "kg/h",
+            "long_name": "Emission rate",
+            "description": f"Cadastre emissions read from {Path(path).name}",
+        }
+    )
+    emissions_data_array.name = "emissions"
+
+    return emissions_data_array
+
+
 def read_con_file_mean(path: Path, GRAL: Any) -> float:
     """Read GRAL concentration file and compute mean concentration.
 

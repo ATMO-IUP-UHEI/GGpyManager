@@ -404,13 +404,13 @@ def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
     ):
         xmin = get_val("west_border")
         ymin = get_val("south_border")
-        xmax = get_val("east_border")
-        ymax = get_val("north_border")
+        # xmax = get_val("east_border")
+        # ymax = get_val("north_border")
     else:
         xmin = get_val("x0")
         ymin = get_val("y0")
-        xmax = get_val("x1")
-        ymax = get_val("y1")
+        # xmax = get_val("x1")
+        # ymax = get_val("y1")
 
     assert isinstance(dx, (int, float)), f"dx={dx} must be numeric."
     assert isinstance(dy, (int, float)), f"dy={dy} must be numeric."
@@ -419,6 +419,19 @@ def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
 
     # Read cadastre file
     cadastre = pd.read_csv(path)
+
+    if not np.all(dx == cadastre["dx"]):
+        raise ValueError(
+            f"Cadastre emission grid does not match GRAL grid spacing: "
+            f"dx in GRAL config is {dx}, but found {cadastre['dx'].unique()} in "
+            f"cadastre file."
+        )
+    if not np.all(dy == cadastre["dy"]):
+        raise ValueError(
+            f"Cadastre emission grid does not match GRAL grid spacing: "
+            f"dy in GRAL config is {dy}, but found {cadastre['dy'].unique()} in "
+            f"cadastre file."
+        )
 
     if "source group" in cadastre.columns:
         cadastre = cadastre.rename(columns={"source group": "source_group"})
@@ -456,7 +469,6 @@ def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
         }
     )
     emissions_data_array.name = "emissions"
-
     return emissions_data_array
 
 

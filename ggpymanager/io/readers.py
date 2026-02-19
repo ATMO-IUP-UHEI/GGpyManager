@@ -373,6 +373,22 @@ def read_gral_windfield(
         return wind
 
 
+def read_point_file(path: str | Path) -> xr.Dataset:
+    point = pd.read_csv(path, skiprows=1)
+    point.columns = point.columns.str.strip()
+    if "source group" in point.columns:
+        point = point.rename(columns={"source group": "source_group"})
+        logging.warning(
+            "Point file contains deprecated 'source group' column name. Renamed to "
+            "'source_group'."
+        )
+
+    point_ds = point.to_xarray()
+    coords = [c for c in point.columns if c != "Emission [kg/h]"]
+    point_ds = point_ds.set_coords(coords)
+    return point_ds
+
+
 def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
     """Read GRAL cadastre file and return as xarray DataArray.
 
@@ -404,13 +420,13 @@ def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
     ):
         xmin = get_val("west_border")
         ymin = get_val("south_border")
-        # xmax = get_val("east_border")
-        # ymax = get_val("north_border")
+        xmax = get_val("east_border")
+        ymax = get_val("north_border")
     else:
         xmin = get_val("x0")
         ymin = get_val("y0")
-        # xmax = get_val("x1")
-        # ymax = get_val("y1")
+        xmax = get_val("x1")
+        ymax = get_val("y1")
 
     assert isinstance(dx, (int, float)), f"dx={dx} must be numeric."
     assert isinstance(dy, (int, float)), f"dy={dy} must be numeric."
@@ -452,10 +468,23 @@ def read_cadastre_file(path: str | Path, GRAL: Any) -> xr.DataArray:
         )
 
     # Group by x, y, and source group, summing emissions
-    grouped = cadastre.groupby(["x", "y", "source_group"])["Emission [kg/h]"].sum()
+    grouped = cadastre.groupby(
+        [
+            "source_group",
+            "y",
+            "x",
+        ]
+    )["Emission [kg/h]"].sum()
 
     # Convert to dask-backed xarray so downstream reindex and reductions are lazy
     emissions_data_array = grouped.to_xarray()
+
+    # Reindex to ensure all grid cells are present, filling missing ones with NaN
+    x_coords = np.arange(xmin + dx / 2, xmax, dx)
+    y_coords = np.arange(ymin + dy / 2, ymax, dy)
+    emissions_data_array = emissions_data_array.reindex(
+        x=x_coords, y=y_coords, method=None
+    )
 
     # Fill in NaNs for missing grid cells (those with zero emissions)
     emissions_data_array = emissions_data_array.fillna(0)

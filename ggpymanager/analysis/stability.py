@@ -33,6 +33,15 @@ def get_allowed_stability_class(radiation, wind_speed, stab_class_catalog):
         Binary array with one-hot encoding for the allowed stability classes
         at each time step.
     """
+    # Check if there are any NaN values in the input data
+    if radiation.isnull().any():
+        logger.warning(
+            "Radiation data contains NaN values."
+        )
+    if wind_speed.isnull().any():
+        logger.warning(
+            "Wind speed data contains NaN values."
+        )
     radiation_index = xr.zeros_like(radiation, dtype=int)
 
     wind_speed_index = xr.zeros_like(wind_speed, dtype=int)

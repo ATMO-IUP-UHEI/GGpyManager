@@ -149,7 +149,7 @@ def generate_timeseries(config):
         return
     matching_path = Path(config["output_path"]) / ggp.config.MATCHING_LOSS_FILE_NAME
     logging.info(f"Opening matching loss from {matching_path}")
-    matching_loss = xr.open_mfdataset(matching_path)
+    matching_loss = xr.load_dataset(matching_path)
     fp = Path(config["gramm_meteo_path"]) / "meteo.nc"
     logging.info(f"Opening GRAMM meteo from {fp}")
     gramm_meteo = xr.open_mfdataset(fp)
@@ -200,11 +200,13 @@ def generate_timeseries(config):
         ],
         dim="loss_type",
     )
+    logging.info("Calculating concentration time series...")
     k = (
         (gral_concentration.groupby(source_groups["type"]).sum())
         .astype("float32")
         .compute()
-    )
+    ).chunk("auto")
+    logging.info(f"GRAL concentration chunk sizes: {k.chunks}")
     k = k.sel(sim_id=sim_ids)
     f = temporal_factor.astype("float32")
     # Old method with source groups - commented out
@@ -215,21 +217,27 @@ def generate_timeseries(config):
     if not concentration_timeseries_path.exists():
         with ProgressBar():
             ggp.io.writers.save_netcdf_with_cf_check(
-                concentration_timeseries, concentration_timeseries_path
+                concentration_timeseries,
+                concentration_timeseries_path,
+                ignore_tests=True,
             )
 
     logging.info("Generating GRAMM meteo time series data...")
-    gramm_meteo_timeseries = gramm_meteo.sel(sim_id=sim_ids).astype("float32")
+    gramm_meteo_timeseries = gramm_meteo.sel(sim_id=sim_ids.sel(best_sim_id=0)).astype(
+        "float32"
+    )
     logging.info(f"Saving GRAMM meteo timeseries to {gramm_meteo_timeseries_path}")
     if not gramm_meteo_timeseries_path.exists():
         ggp.io.writers.save_netcdf_with_cf_check(
-            gramm_meteo_timeseries, gramm_meteo_timeseries_path
+            gramm_meteo_timeseries, gramm_meteo_timeseries_path, ignore_tests=True
         )
 
     logging.info("Generating GRAL meteo time series data...")
-    gral_meteo_timeseries = gral_meteo.sel(sim_id=sim_ids).astype("float32")
+    gral_meteo_timeseries = gral_meteo.sel(sim_id=sim_ids.sel(best_sim_id=0)).astype(
+        "float32"
+    )
     logging.info(f"Saving GRAL meteo timeseries to {gral_meteo_timeseries_path}")
     if not gral_meteo_timeseries_path.exists():
         ggp.io.writers.save_netcdf_with_cf_check(
-            gral_meteo_timeseries, gral_meteo_timeseries_path
+            gral_meteo_timeseries, gral_meteo_timeseries_path, ignore_tests=True
         )

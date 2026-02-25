@@ -392,7 +392,7 @@ def save_netcdf_with_cf_check(
 
     try:
         # Check if CRS information is present
-        if any(v in dataset.variables for v in ["x", "y", "lat", "lon"]):
+        if any(v in dataset.dims for v in ["x", "y", "lat", "lon"]):
             # Assert that ds.rio.crs is not None
             if not hasattr(dataset, "rio") or dataset.rio.crs is None:
                 assert False, (

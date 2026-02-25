@@ -39,7 +39,7 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         "gral_status": Path(c["domain"]["gral"]["conf_path"]) / STATUS_LOG_FILE_NAME,
         # Outputs
         "matching_loss": Path(c["output_path"]) / MATCHING_LOSS_FILE_NAME,
-        "concentration_timeseries": Path(c["gral_co2_path"])
+        "concentration_timeseries": Path(c["output_path"])
         / CONCENTRATION_TIMESERIES_FILE_NAME,
         "gramm_meteo_timeseries": Path(c["output_path"])
         / GRAMM_METEO_TIMESERIES_FILE_NAME,

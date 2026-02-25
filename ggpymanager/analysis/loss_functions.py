@@ -6,11 +6,89 @@ import dask.array.core
 import numpy as np
 import xarray as xr
 
-from ggpymanager.processing.wind import (direction_from_vector,
-                                         wind_speed_from_vector)
+from ggpymanager.processing.wind import direction_from_vector, wind_speed_from_vector
 from ggpymanager.utils.decorators import check_docstring_dims
 
 logger = logging.getLogger(__name__)
+
+
+def gaussian(x, mu, sigma):
+    return np.exp(-0.5 * ((x - mu) / sigma) ** 2) / (sigma * np.sqrt(2 * np.pi))
+
+
+def smooth_loss(
+    matching_loss: xr.DataArray,
+    loss_type: str,
+    n_temporal_smoothing: int,
+    sigma_t: float = 1.0,
+) -> xr.DataArray:
+    """Apply temporal smoothing to the matching loss.
+
+    Parameters
+    ----------
+    matching_loss : xr.DataArray (time, sim_id)
+        Matching loss for each hour and catalog entry.
+    loss_type : str
+        Type of loss to smooth (e.g., 'rmse', 'regularized', 'compound').
+    n_temporal_smoothing : int
+        Number of hours to include in the temporal smoothing window (must be odd).
+    sigma_t : float, optional
+        Standard deviation for the Gaussian weights in hours. Default is 1.0.
+
+    Returns
+    -------
+    smoothed_loss : xr.DataArray (time, sim_id)
+        Temporally smoothed matching loss for each hour and catalog entry.
+
+    Notes
+    -----
+    Not currently used in the main workflow, but can be applied to the matching loss for
+    temporal smoothing.
+    """
+    # TODO: Add this to tests
+    # smoothed_loss = smooth_loss(
+    #     matching_loss.matching_loss,
+    #     "rmse - filter: True",
+    #     n_temporal_smoothing=7,
+    #     sigma_t=0.001,
+    # ).load()
+    # assert np.allclose(
+    #     smoothed_loss.fillna(0.0).values,
+    #     matching_loss.matching_loss.sel(
+    #         loss_type="rmse - filter: True"
+    #     ).fillna(0.0).values,
+    #     atol=1e-5,
+    # )
+
+    # Create rolling window
+    window = (
+        matching_loss.sel(loss_type=loss_type)
+        .rolling(time=n_temporal_smoothing, center=True)
+        .construct("window")
+    )
+    # Apply temporal smoothing to the matching loss
+    assert n_temporal_smoothing % 2 == 1, "n_temporal_smoothing must be odd"
+    dt = n_temporal_smoothing // 2
+    weights = xr.DataArray(
+        gaussian(
+            np.arange(-dt, dt + 1),
+            mu=0.0,
+            sigma=sigma_t,
+        ),
+        dims="window",
+    )
+    weights = (window.notnull() * weights).compute()
+    weights = weights.where(weights.sum("window") > 0)
+    weights = weights / weights.sum("window", min_count=1)
+    assert np.allclose(
+        weights.sum("window", min_count=1).fillna(1.0).values, 1.0, atol=0.01
+    ), (
+        f"Weights must sum to 1 +/-0.01, got "
+        f"{weights.sum("window", min_count=1).values} -> Numerical issue?"
+    )
+
+    matching_loss = (window * weights).sum("window", min_count=1)
+    return matching_loss
 
 
 @check_docstring_dims

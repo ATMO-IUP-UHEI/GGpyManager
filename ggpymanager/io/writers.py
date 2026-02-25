@@ -362,7 +362,10 @@ def write_ggeom_file(geom: xr.Dataset, file_path: str | Path) -> None:
 
 
 def save_netcdf_with_cf_check(
-    dataset: xr.Dataset, path: str | Path, **to_netcdf_kwargs
+    dataset: xr.Dataset,
+    path: str | Path,
+    ignore_tests: bool = False,
+    **to_netcdf_kwargs,
 ) -> bool:
     """
     Save a dataset to netCDF only if it passes CF compliance checks.
@@ -373,6 +376,8 @@ def save_netcdf_with_cf_check(
         Dataset to save
     path : str | Path
         Output path for the netCDF file
+    ignore_tests : bool, optional
+        If True, skip CF compliance checks and save the file directly. Default is False.
     **to_netcdf_kwargs
         Additional arguments passed to dataset.to_netcdf()
 
@@ -382,6 +387,10 @@ def save_netcdf_with_cf_check(
         True if file was saved successfully, False if CF check failed
     """
     assert isinstance(dataset, xr.Dataset), "Input must be an xarray Dataset."
+
+    if ignore_tests:
+        logging.warning("Ignoring CF compliance checks and saving file directly.")
+
     path = Path(path)
     # Save to temporary file first
     with tempfile.NamedTemporaryFile(suffix="." + str(path.name), delete=False) as tmp:
@@ -417,7 +426,7 @@ def save_netcdf_with_cf_check(
                 f"File will be saved: {path}"
             )
 
-        if not return_value:
+        if (not return_value) and (not ignore_tests):
             logging.error(f"File NOT saved due to CF compliance errors: {path}")
             Path(tmp_path).unlink()  # Delete temp file
             return False
@@ -460,7 +469,7 @@ def prepare_netcdf_dataset(dataset, to_netcdf_kwargs):
             f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         logging.info("Adding 'history' global attribute.")
-    
+
     # Add long_name to "spatial_ref" variable if missing
     if "spatial_ref" in dataset.variables:
         if "long_name" not in dataset["spatial_ref"].attrs:

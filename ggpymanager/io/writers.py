@@ -444,15 +444,17 @@ def save_netcdf_with_cf_check(
 
 def prepare_netcdf_dataset(dataset, to_netcdf_kwargs):
     # Determine unlimited dimensions
-    if "time" in dataset.dims:
-        unlimited_dims = ("time",)
-        logging.info("Setting 'time' as unlimited dimension for netCDF output.")
-    elif "iteration" in dataset.dims:
-        unlimited_dims = ("iteration",)
-        logging.info("Setting 'iteration' as unlimited dimension for netCDF output.")
-    else:
-        unlimited_dims = None
-        # Add units_metadata attribute if not present
+    # This makes the readout very slow
+    # if "time" in dataset.dims:
+    #     unlimited_dims = ("time",)
+    #     logging.info("Setting 'time' as unlimited dimension for netCDF output.")
+    # elif "iteration" in dataset.dims:
+    #     unlimited_dims = ("iteration",)
+    #     logging.info("Setting 'iteration' as unlimited dimension for netCDF output.")
+    # else:
+    #     unlimited_dims = None
+    unlimited_dims = None
+    # Add units_metadata attribute if not present
     for var in dataset.variables:
         if dataset[var].attrs.get("standard_name", "") == "time":
             if "units_metadata" not in dataset[var].attrs:

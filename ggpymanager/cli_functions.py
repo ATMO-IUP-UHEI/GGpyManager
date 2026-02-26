@@ -136,6 +136,9 @@ def generate_timeseries(config):
     gral_meteo_timeseries_path = (
         Path(config["output_path"]) / ggp.config.GRAL_METEO_TIMESERIES_FILE_NAME
     )
+    # TODO: Refactor to make this check for each file separately and only skip
+    # generation for files that already exist, instead of skipping all if any file
+    # exists. Also add error handling for missing input files or variables.
     if (
         concentration_timeseries_path.exists()
         and gramm_meteo_timeseries_path.exists()
@@ -208,11 +211,27 @@ def generate_timeseries(config):
     ).chunk("auto")
     logging.info(f"GRAL concentration chunk sizes: {k.chunks}")
     k = k.sel(sim_id=sim_ids)
+    # Convert to ppm
+    pressure = ggp.load("pressure", config).pressure
+    temperature = ggp.load("temperature", config).temperature
+    k = ggp.utils.ugm3_to_ppm(
+        k,
+        "co2",
+        P_local=pressure,
+        T_local=temperature,
+    )
     f = temporal_factor.astype("float32")
     # Old method with source groups - commented out
     # k = gral_concentration.sel(sim_id=sim_ids).astype("float32")
     # f = temporal_factor.sel(type=source_groups["type"]).astype("float32")
     concentration_timeseries = (k * f).to_dataset(name="co2_timeseries")
+    logging.info("Calculating loss difference to best simulation...")
+    loss = matching_loss.matching_loss.sel(sim_id=sim_ids)
+    concentration_timeseries.coords["loss_diff"] = loss - loss.sel(best_sim_id=0)
+    concentration_timeseries["loss_diff"].attrs = {
+        "long_name": "Difference in matching loss to best simulation",
+        "units": loss.attrs.get("units", ""),
+    }
     logging.info(f"Saving concentration timeseries to {concentration_timeseries_path}")
     if not concentration_timeseries_path.exists():
         with ProgressBar():
@@ -222,22 +241,22 @@ def generate_timeseries(config):
                 ignore_tests=True,
             )
 
-    logging.info("Generating GRAMM meteo time series data...")
-    gramm_meteo_timeseries = gramm_meteo.sel(sim_id=sim_ids.sel(best_sim_id=0)).astype(
-        "float32"
-    )
-    logging.info(f"Saving GRAMM meteo timeseries to {gramm_meteo_timeseries_path}")
     if not gramm_meteo_timeseries_path.exists():
+        logging.info("Generating GRAMM meteo time series data...")
+        gramm_meteo_timeseries = gramm_meteo.sel(
+            sim_id=sim_ids.sel(best_sim_id=0)
+        ).astype("float32")
+        logging.info(f"Saving GRAMM meteo timeseries to {gramm_meteo_timeseries_path}")
         ggp.io.writers.save_netcdf_with_cf_check(
             gramm_meteo_timeseries, gramm_meteo_timeseries_path, ignore_tests=True
         )
 
-    logging.info("Generating GRAL meteo time series data...")
-    gral_meteo_timeseries = gral_meteo.sel(sim_id=sim_ids.sel(best_sim_id=0)).astype(
-        "float32"
-    )
-    logging.info(f"Saving GRAL meteo timeseries to {gral_meteo_timeseries_path}")
     if not gral_meteo_timeseries_path.exists():
+        logging.info("Generating GRAL meteo time series data...")
+        gral_meteo_timeseries = gral_meteo.sel(
+            sim_id=sim_ids.sel(best_sim_id=0)
+        ).astype("float32")
+        logging.info(f"Saving GRAL meteo timeseries to {gral_meteo_timeseries_path}")
         ggp.io.writers.save_netcdf_with_cf_check(
             gral_meteo_timeseries, gral_meteo_timeseries_path, ignore_tests=True
         )

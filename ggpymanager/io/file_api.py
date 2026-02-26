@@ -47,4 +47,4 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         / GRAL_METEO_TIMESERIES_FILE_NAME,
     }
     logging.info(f"Opening {data_name} from {file_paths[data_name]}")
-    return xr.open_dataset(file_paths[data_name])
+    return xr.open_mfdataset(file_paths[data_name])

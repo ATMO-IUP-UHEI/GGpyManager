@@ -203,7 +203,15 @@ class Config(BaseModel):
         ..., description="Path to GRAL meteorological output at stations"
     )
     gral_co2_path: str = Field(..., description="Path to GRAL CO2 output at stations")
-    co2_measurements_path: str = Field(..., description="Path to CO2 measurement file (NetCDF)")
+    co2_measurements_path: str = Field(
+        ..., description="Path to CO2 measurement file (NetCDF)"
+    )
+    buildings_path: str | None = Field(
+        default=None, description="Path to buildings NetCDF file (optional)"
+    )
+    area_id_path: str | None = Field(
+        default=None, description="Path to area ID NetCDF file (optional)"
+    )
     domain: Domain = Field(..., description="Spatial domain configuration")
     fluxes: Fluxes = Field(..., description="Emission flux configuration")
     matching: Matching = Field(..., description="Station matching configuration")
@@ -425,7 +433,7 @@ NETCDF_METADATA = {
         "long_name": "Air temperature",
         "units": "K",
         "description": "Air temperature",
-        "units_metadata": 'temperature: on_scale',
+        "units_metadata": "temperature: on_scale",
     },
     "pressure": {
         "long_name": "Air pressure",

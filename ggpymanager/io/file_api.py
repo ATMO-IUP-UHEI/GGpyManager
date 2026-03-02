@@ -47,7 +47,9 @@ def preprocess_gral_meteo(ds: xr.Dataset) -> xr.Dataset:
             "naming issue that will be fixed in a future update."
         )
         ds = ds.rename({"ux": "u", "vy": "v"})
-    ds = ds.rename({"direction": "synoptic_wind_direction", "speed": "synoptic_wind_speed"})
+    ds = ds.rename(
+        {"direction": "synoptic_wind_direction", "speed": "synoptic_wind_speed"}
+    )
     from ggpymanager import processing
 
     ds["wind_speed"] = processing.wind_speed_from_vector(ds["u"], ds["v"])
@@ -71,6 +73,13 @@ def preprocess_gramm_meteo(ds: xr.Dataset) -> xr.Dataset:
         Processed dataset with variables: ``u``, ``v``, ``wind_speed``,
         ``wind_direction``.
     """
+    if "ux" in ds.variables and "vy" in ds.variables:
+        logging.warning(
+            "'ux' and 'vy' variable names found in GRAL meteo data. "
+            "Renaming to 'u' and 'v'. This compensates for a known server-side "
+            "naming issue that will be fixed in a future update."
+        )
+        ds = ds.rename({"ux": "u", "vy": "v"})
     if "speed" in ds.variables:
         logging.warning(
             "'speed' variable found in GRAMM meteo data. Dropping it. "
@@ -95,7 +104,9 @@ def _load_model_meteo(config: dict) -> xr.Dataset:
     for s, m in config["matching"]["stations"].items():
         logging.info(f"Selecting model data for station {s} from model {m}")
         meteo_at_station.append(model_selection[m].sel(station=s))
-    result = xr.concat(meteo_at_station, dim="station", coords="different", compat="equals")
+    result = xr.concat(
+        meteo_at_station, dim="station", coords="different", compat="equals"
+    )
     assert isinstance(result, xr.Dataset)
     return result
 

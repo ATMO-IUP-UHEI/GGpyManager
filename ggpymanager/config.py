@@ -62,6 +62,7 @@ MATCHING_LOSS_FILE_NAME = "matching_loss.nc"
 CONCENTRATION_TIMESERIES_FILE_NAME = "concentration_timeseries.nc"
 GRAMM_METEO_TIMESERIES_FILE_NAME = "gramm_meteo_timeseries.nc"
 GRAL_METEO_TIMESERIES_FILE_NAME = "gral_meteo_timeseries.nc"
+BACKGROUND_CO2_FILE_NAME = "background_co2.nc"
 
 
 # Pydantic models for configuration validation
@@ -133,6 +134,21 @@ class Fluxes(BaseModel):
     )
 
 
+class Background(BaseModel):
+    """Configuration for background CO2 computation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    height_bins: list[int] = Field(
+        default=[0, 40, 80, 120, 200],
+        description=(
+            "Bin edges for height-binned background CO2 (m agl). "
+            "Must be monotonically increasing. "
+            "Example: [0, 40, 80, 120, 200] produces bins 0-40 m, 40-80 m, etc."
+        ),
+    )
+
+
 class Matching(BaseModel):
     """Configuration for matching simulations with station measurements."""
 
@@ -190,6 +206,10 @@ class Config(BaseModel):
     domain: Domain = Field(..., description="Spatial domain configuration")
     fluxes: Fluxes = Field(..., description="Emission flux configuration")
     matching: Matching = Field(..., description="Station matching configuration")
+    background: Background = Field(
+        default_factory=Background,
+        description="Background CO2 computation configuration",
+    )
 
 
 # NetCDF metadata

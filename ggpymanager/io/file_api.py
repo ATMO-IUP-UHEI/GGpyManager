@@ -4,6 +4,7 @@ from pathlib import Path
 import xarray as xr
 
 from ggpymanager.config import (
+    BACKGROUND_CO2_FILE_NAME,
     CONCENTRATION_TIMESERIES_FILE_NAME,
     GRAL_METEO_TIMESERIES_FILE_NAME,
     GRAMM_METEO_TIMESERIES_FILE_NAME,
@@ -18,9 +19,31 @@ def load(data_name: str, config: dict) -> xr.Dataset:
     Parameters
     ----------
     data_name : str
-        The name of the dataset to load. Must be one of "temperature", "pressure",
-        "gramm_status", "gral_status", "matching_loss", "concentration_timeseries",
-        "gramm_meteo_timeseries", or "gral_meteo_timeseries".
+        The name of the dataset to load. Must be one of:
+
+        Measurements:
+          - "temperature"
+          - "pressure"
+          - "meteo_measurements"
+
+        Catalog status:
+          - "gramm_status"
+          - "gral_status"
+
+        Model inputs:
+          - "source_groups"
+          - "temporal_profiles"
+          - "gramm_meteo_raw"
+          - "gral_meteo_raw"
+          - "gral_co2_raw"
+
+        Outputs (created by ggpy CLI commands):
+          - "matching_loss"
+          - "concentration_timeseries"
+          - "gramm_meteo_timeseries"
+          - "gral_meteo_timeseries"
+          - "background_co2"
+
     config : dict
         The configuration dictionary containing paths to the datasets.
 
@@ -34,9 +57,16 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         # Measurements
         "temperature": Path(c["data_path"]) / c["meteo_path"] / "temperature.nc",
         "pressure": Path(c["data_path"]) / c["meteo_path"] / "pressure.nc",
+        "meteo_measurements": Path(c["data_path"]) / c["meteo_path"] / "meteo.nc",
         # Catalog
         "gramm_status": Path(c["domain"]["gramm"]["conf_path"]) / STATUS_LOG_FILE_NAME,
         "gral_status": Path(c["domain"]["gral"]["conf_path"]) / STATUS_LOG_FILE_NAME,
+        # Model inputs
+        "source_groups": Path(c["source_groups_path"]),
+        "temporal_profiles": Path(c["temporal_profiles_path"]),
+        "gramm_meteo_raw": Path(c["gramm_meteo_path"]) / "meteo.nc",
+        "gral_meteo_raw": Path(c["gral_meteo_path"]) / "meteo.nc",
+        "gral_co2_raw": Path(c["gral_co2_path"]) / "co2.nc",
         # Outputs
         "matching_loss": Path(c["output_path"]) / MATCHING_LOSS_FILE_NAME,
         "concentration_timeseries": Path(c["output_path"])
@@ -45,6 +75,7 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         / GRAMM_METEO_TIMESERIES_FILE_NAME,
         "gral_meteo_timeseries": Path(c["output_path"])
         / GRAL_METEO_TIMESERIES_FILE_NAME,
+        "background_co2": Path(c["output_path"]) / BACKGROUND_CO2_FILE_NAME,
     }
     logging.info(f"Opening {data_name} from {file_paths[data_name]}")
     return xr.open_mfdataset(file_paths[data_name])

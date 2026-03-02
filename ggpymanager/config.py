@@ -203,6 +203,7 @@ class Config(BaseModel):
         ..., description="Path to GRAL meteorological output at stations"
     )
     gral_co2_path: str = Field(..., description="Path to GRAL CO2 output at stations")
+    co2_measurements_path: str = Field(..., description="Path to CO2 measurement file (NetCDF)")
     domain: Domain = Field(..., description="Spatial domain configuration")
     fluxes: Fluxes = Field(..., description="Emission flux configuration")
     matching: Matching = Field(..., description="Station matching configuration")

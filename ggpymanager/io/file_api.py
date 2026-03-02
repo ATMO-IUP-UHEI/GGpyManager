@@ -25,6 +25,7 @@ def load(data_name: str, config: dict) -> xr.Dataset:
           - "temperature"
           - "pressure"
           - "meteo_measurements"
+          - "co2_measurements"
 
         Catalog status:
           - "gramm_status"
@@ -55,9 +56,10 @@ def load(data_name: str, config: dict) -> xr.Dataset:
     c = config
     file_paths = {
         # Measurements
-        "temperature": Path(c["data_path"]) / c["meteo_path"] / "temperature.nc",
-        "pressure": Path(c["data_path"]) / c["meteo_path"] / "pressure.nc",
-        "meteo_measurements": Path(c["data_path"]) / c["meteo_path"] / "meteo.nc",
+        "temperature": Path(c["meteo_path"]) / "temperature.nc",
+        "pressure": Path(c["meteo_path"]) / "pressure.nc",
+        "meteo_measurements": Path(c["meteo_path"]) / "meteo.nc",
+        "co2_measurements": Path(c["co2_measurements_path"]),
         # Catalog
         "gramm_status": Path(c["domain"]["gramm"]["conf_path"]) / STATUS_LOG_FILE_NAME,
         "gral_status": Path(c["domain"]["gral"]["conf_path"]) / STATUS_LOG_FILE_NAME,

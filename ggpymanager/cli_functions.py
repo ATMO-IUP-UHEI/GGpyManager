@@ -15,7 +15,7 @@ def generate_matching_loss_file(config):
         )
         return
 
-    model_meteo = load_matching_model_meteo(config)
+    model_meteo = ggp.load("model_meteo", config)
 
     fp = config["gral_meteo_path"] + "/meteo.nc"
     logging.info(f"Loading GRAL meteo from {fp}")
@@ -74,56 +74,6 @@ def generate_matching_loss_file(config):
     matching_path.parent.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving matching loss to {matching_path}")
     ggp.io.writers.save_netcdf_with_cf_check(matching_loss, matching_path)
-
-
-# TODO: Refactor to use ggp.load() for loading the meteo and matching loss data, and add
-#  error handling for missing files or variables.
-def load_matching_model_meteo(config: dict) -> xr.Dataset:
-    """Load meteorological measurements and model data for matching.
-
-    Parameters
-    ----------
-    config : dict
-        Configuration dictionary containing paths to the datasets and matching settings.
-
-    Returns
-    -------
-    model_meteo : xr.Dataset
-        Meteorological data from the selected model (GRAMM or GRAL) for the selected
-        stations.
-    """
-    logging.info("Loading meteorological measurements and model data...")
-    fp = config["gramm_meteo_path"] + "/meteo.nc"
-    logging.info(f"Loading GRAMM meteo from {fp}")
-    gramm_meteo = xr.open_dataset(fp)
-    fp = config["gral_meteo_path"] + "/meteo.nc"
-    logging.info(f"Loading GRAL meteo from {fp}")
-    gral_meteo = xr.open_dataset(fp)
-    # Fix wrong variable names in GRAL meteo file
-    if "ux" in gral_meteo.variables and "vy" in gral_meteo.variables:
-        logging.warning(
-            "'ux' and 'vy' variables found in GRAL meteo data. Renaming to 'u' and 'v'."
-        )
-        gral_meteo = gral_meteo.rename({"ux": "u", "vy": "v"})
-
-    logging.info("Selecting wind fields from GRAMM or GRAL depending on stations...")
-    model_selection = {
-        "gramm": gramm_meteo,
-        "gral": gral_meteo,
-    }
-    meteo_at_station: list[xr.Dataset] = []
-    for s, m in config["matching"]["stations"].items():
-        logging.info(f"Selecting model data for station {s} from model {m}")
-        meteo_at_station.append(model_selection[m].sel(station=s))
-
-    model_meteo = xr.concat(
-        meteo_at_station,
-        dim="station",
-        coords="different",
-        compat="equals",
-    )
-
-    return model_meteo
 
 
 def generate_timeseries(config):

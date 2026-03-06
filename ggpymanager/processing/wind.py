@@ -128,3 +128,22 @@ def circular_mean(angles: Any) -> Any:
     cos_sum = np.sum(np.cos(np.deg2rad(angles)), axis=0)
     mean_angle = np.rad2deg(np.arctan2(sin_sum, cos_sum)) % 360
     return mean_angle
+
+
+def circular_diff(angle1: Any, angle2: Any) -> Any:
+    """Calculate the circular difference between two angles.
+
+    Parameters
+    ----------
+    angle1 : array_like
+        First angle in degrees.
+    angle2 : array_like
+        Second angle in degrees.
+
+    Returns
+    -------
+    diff : array_like
+        Circular difference in degrees, in the range [-180, 180].
+    """
+    diff = (angle1 - angle2 + 180) % 360 - 180
+    return diff

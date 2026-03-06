@@ -96,9 +96,9 @@ def preprocess_gramm_meteo(ds: xr.Dataset) -> xr.Dataset:
     return ds
 
 
-def _load_model_meteo(config: dict) -> xr.Dataset:
-    gramm_meteo = load("gramm_meteo_catalog", config)
-    gral_meteo = load("gral_meteo_catalog", config)
+def _combine_gramm_gral_meteo(
+    gramm_meteo: xr.Dataset, gral_meteo: xr.Dataset, config: dict
+) -> xr.Dataset:
     model_selection = {"gramm": gramm_meteo, "gral": gral_meteo}
     meteo_at_station = []
     for s, m in config["matching"]["stations"].items():
@@ -135,13 +135,14 @@ def load(data_name: str, config: dict) -> xr.Dataset:
           - "gramm_meteo_catalog"
           - "gral_meteo_catalog"
           - "gral_co2_catalog"
-          - "model_meteo"
+          - "model_meteo_catalog"
 
         Outputs (created by ggpy CLI commands):
           - "matching_loss"
           - "concentration_timeseries"
           - "gramm_meteo_timeseries"
           - "gral_meteo_timeseries"
+          - "model_meteo_timeseries"
           - "background_co2"
 
     config : dict
@@ -156,8 +157,14 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         applied automatically via :func:`preprocess_gramm_meteo` or
         :func:`preprocess_gral_meteo`.
     """
-    if data_name == "model_meteo":
-        return _load_model_meteo(config)
+    if data_name == "model_meteo_catalog":
+        gramm_meteo = load("gramm_meteo_catalog", config)
+        gral_meteo = load("gral_meteo_catalog", config)
+        return _combine_gramm_gral_meteo(gramm_meteo, gral_meteo, config)
+    if data_name == "model_meteo_timeseries":
+        gramm_meteo = load("gramm_meteo_timeseries", config)
+        gral_meteo = load("gral_meteo_timeseries", config)
+        return _combine_gramm_gral_meteo(gramm_meteo, gral_meteo, config)
     c = config
     file_paths = {
         # Measurements

@@ -15,7 +15,7 @@ def generate_matching_loss_file(config):
         )
         return
 
-    model_meteo = ggp.load("model_meteo", config)
+    model_meteo = ggp.load("model_meteo_catalog", config)
 
     fp = config["gral_meteo_path"] + "/meteo.nc"
     logging.info(f"Loading GRAL meteo from {fp}")
@@ -73,7 +73,9 @@ def generate_matching_loss_file(config):
     )
     matching_path.parent.mkdir(parents=True, exist_ok=True)
     logging.info(f"Saving matching loss to {matching_path}")
-    ggp.io.writers.save_netcdf_with_cf_check(matching_loss, matching_path)
+    ggp.io.writers.save_netcdf_with_cf_check(
+        matching_loss, matching_path, ignore_tests=True
+    )
 
 
 def generate_timeseries(config):

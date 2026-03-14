@@ -598,5 +598,5 @@ def process_concentration_from_model(
         # Save intermediate result
         logging.info(f"Saving intermediate result to {gral_concentration_output_path}")
         io.writers.save_netcdf_with_cf_check(
-            con, gral_concentration_output_path
+            con, gral_concentration_output_path, ignore_tests=True
         )

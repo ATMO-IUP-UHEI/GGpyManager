@@ -1,6 +1,7 @@
 """File writers for GRAMM/GRAL model input files."""
 
 import logging
+import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
@@ -432,7 +433,9 @@ def save_netcdf_with_cf_check(
             return False
         else:
             # Move temp file to final destination
-            Path(tmp_path).rename(path)
+            # Use rename if on the same filesystem, otherwise copy and delete
+            # Path(tmp_path).rename(path)
+            shutil.copyfile(tmp_path, path)
             logging.info(f"File saved successfully: {path}")
             return True
 

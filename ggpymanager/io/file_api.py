@@ -130,6 +130,10 @@ def load(data_name: str, config: dict) -> xr.Dataset:
           - "gral_status"
 
         Model inputs:
+          - "gral_buildings"
+          - "gramm_terrain"
+          - "gral_terrain"
+          - "gramm_landcover"
           - "source_groups"
           - "temporal_profiles"
           - "gramm_meteo_catalog"
@@ -176,6 +180,12 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         "gramm_status": Path(c["domain"]["gramm"]["conf_path"]) / STATUS_LOG_FILE_NAME,
         "gral_status": Path(c["domain"]["gral"]["conf_path"]) / STATUS_LOG_FILE_NAME,
         # Model inputs
+        "gral_buildings": Path(c["data_path"]) / "Buildings" / "buildings.nc",
+        "gramm_terrain": Path(c["data_path"]) / "Terrain" / "gramm_terrain.nc",
+        "gral_terrain": Path(c["data_path"]) / "Terrain" / "gral_terrain.nc",
+        "gramm_landcover": Path(c["data_path"])
+        / "Landcover"
+        / "gramm_UrbanAtlas_landcover.nc",
         "source_groups": Path(c["source_groups_path"]),
         "temporal_profiles": Path(c["temporal_profiles_path"]),
         "gramm_meteo_catalog": Path(c["gramm_meteo_path"]) / "meteo.nc",

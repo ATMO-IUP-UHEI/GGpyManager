@@ -135,6 +135,7 @@ def load(data_name: str, config: dict) -> xr.Dataset:
           - "gral_terrain"
           - "gramm_landcover"
           - "source_groups"
+          - "area_id"
           - "temporal_profiles"
           - "gramm_meteo_catalog"
           - "gral_meteo_catalog"
@@ -187,6 +188,7 @@ def load(data_name: str, config: dict) -> xr.Dataset:
         / "Landcover"
         / "gramm_UrbanAtlas_landcover.nc",
         "source_groups": Path(c["source_groups_path"]),
+        "area_id": Path(c["area_id_path"]),
         "temporal_profiles": Path(c["temporal_profiles_path"]),
         "gramm_meteo_catalog": Path(c["gramm_meteo_path"]) / "meteo.nc",
         "gral_meteo_catalog": Path(c["gral_meteo_path"]) / "meteo.nc",

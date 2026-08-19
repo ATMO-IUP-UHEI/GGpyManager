@@ -35,7 +35,7 @@ def create_domain_geometry(
     crs = config["domain"]["crs"]
     if isinstance(crs, dict):
         crs = utils.get_centered_custom_projection(crs["center_lat"], crs["center_lon"])
-    
+
     bbox = config["domain"][name]["bbox"]
     # shapely.geometry.box expects (minx, miny, maxx, maxy)
     domain_area = gpd.GeoDataFrame(
@@ -155,6 +155,24 @@ def smooth_elevation(
         f"Max gradient before smoothing: {gradient(elevation).max().values:.1f} m"
     )
 
+    # Smooth gradients.
+    # center=True: the xarray default (center=False) is right-aligned and would
+    # displace the whole terrain by (n_grid_cells - 1) / 2 cells to the east/north.
+    # This has to run *before* the border flattening - the other way round the
+    # rolling window mixes interior terrain back into the border band and undoes it.
+    elevation = elevation.rolling(
+        {"x": n_grid_cells, "y": n_grid_cells}, center=True
+    ).mean()
+
+    # Fill the NaNs left by the rolling window at the edges
+    for dim in ["x", "y"]:
+        elevation = elevation.interpolate_na(
+            method="nearest", dim=dim, fill_value="extrapolate"
+        )
+    logger.info(
+        f"Max gradient after smoothing: {gradient(elevation).max().values:.1f} m"
+    )
+
     # Smooth borders
     boundary_mask = xr.ones_like(elevation)
     boundary_mask[
@@ -179,17 +197,6 @@ def smooth_elevation(
     # Interpolate linearly between minimum elevation
     elevation = elevation * weights + min_border_elevation * (1 - weights)
 
-    # Smooth gradients
-    elevation = elevation.rolling({"x": n_grid_cells, "y": n_grid_cells}).mean()
-    logger.info(
-        f"Max gradient after smoothing: {gradient(elevation).max().values:.1f} m"
-    )
-
-    # Fill NaNs
-    for dim in ["x", "y"]:
-        elevation = elevation.interpolate_na(
-            method="nearest", dim=dim, fill_value="extrapolate"
-        )
     return elevation
 
 
@@ -439,9 +446,24 @@ def create_ggeom_dataset(
     cell_height = z0 * vert_stretching ** np.arange(nz)
     max_column_height = np.sum(cell_height)
 
+    # The model top has to clear the terrain by a comfortable margin, otherwise the
+    # terrain-following levels compress to nothing - or invert - over high ground.
+    # CreateGrammGrid.cs:413 refuses to build the grid below a factor of 3.
+    relief = float(max_elevation - min_elevation)
+    if max_column_height < 3 * relief:
+        message = (
+            f"Height of the model domain is too low: {max_column_height:.1f} m above "
+            f"the lowest point for a terrain relief of {relief:.1f} m (needs to be at "
+            f"least 3x). Increase nz, z0 or vert_stretching."
+        )
+        if max_column_height <= relief:
+            raise ValueError(message)
+        logger.warning(message)
+
     column_height = max_column_height - (geom["AHE"][{"z_stag": 0}] - min_elevation)
     relative_column_height = column_height / max_column_height
     assert relative_column_height.max() == 1
+    assert relative_column_height.min() > 0, "Vertical grid is inverted."
     for idz_stag in range(1, len(geom.z_stag)):
         idz = idz_stag - 1
         lower_points = geom["AHE"][{"z_stag": idz_stag - 1}]
@@ -458,7 +480,16 @@ def create_ggeom_dataset(
     )
     logger.info(f"Grid maximum {geom['Z'].max().values:.2f} m")
 
-    geom["AH"] = elevation
+    # Height of the surface: the arithmetic mean of the four AHE corners of the
+    # cell (CreateGrammGrid.cs:476). GRAMM and GRAL both evaluate the surface
+    # layer as ZSP[..][1] - AH, and ZSP is derived from AHE; taking the raw
+    # cell-centre elevation here leaves the 2*dx (Nyquist) component of the DEM
+    # in AH that the corner averaging removes from ZSP, which makes the
+    # height above ground - and hence u*, the heat flux and Ri - oscillate at
+    # 2*dx and can even drive it negative.
+    geom["AH"] = interp_stag_dim(
+        geom["AHE"][{"z_stag": 0}], {"y_stag": "mean", "x_stag": "mean"}
+    )
 
     # AREAX calculation (x-faces)
     areax = interp_stag_dim(geom["AHE"], {"z_stag": "diff", "y_stag": "mean"}) * dy
@@ -469,11 +500,17 @@ def create_ggeom_dataset(
     geom["AREAY"] = areay
 
     # AREAZX calculation (z-faces projected on x-faces)
-    areazx = interp_stag_dim(geom["AHE"], {"x_stag": "diff", "y_stag": "mean"}) * dy
+    # Signed x-component of the upward bottom-face area vector,
+    # (-dh/dx, -dh/dy, 1) * dx * dy, i.e. MINUS the eastward height difference
+    # (CreateGrammGrid.cs:462). GRAMM adds it linearly to the mass flux and to
+    # the pressure force, so the sign matters.
+    areazx = -interp_stag_dim(geom["AHE"], {"x_stag": "diff", "y_stag": "mean"}) * dy
     geom["AREAZX"] = areazx
 
     # AREAZY calculation (z-faces projected on y-faces)
-    areazy = interp_stag_dim(geom["AHE"], {"y_stag": "diff", "x_stag": "mean"}) * dx
+    # Signed y-component of the upward bottom-face area vector, i.e. MINUS the
+    # northward height difference (CreateGrammGrid.cs:463).
+    areazy = -interp_stag_dim(geom["AHE"], {"y_stag": "diff", "x_stag": "mean"}) * dx
     geom["AREAZY"] = areazy
 
     # Calculate bottom area of the grid cell
